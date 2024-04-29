@@ -39,9 +39,11 @@ class Param(inspect.Parameter):
             kwargs["kind"] = inspect.Parameter.POSITIONAL_OR_KEYWORD
         param_description = str(kwargs.pop("description", ""))
         param_line = str(kwargs.pop("line", ""))
+        param_value = kwargs.pop("value", Empty)
         param_required = bool(kwargs.pop("required", True))
         param_optional = bool(kwargs.pop("optional", False))
         super().__init__(*argv, **kwargs)
+        self._value = param_value
         self.required = param_required
         self.description = param_description
         self.optional = param_optional

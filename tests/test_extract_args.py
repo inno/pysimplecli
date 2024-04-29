@@ -309,3 +309,33 @@ def test_multiline_comment_offset_multiple_inline():
             description="more stuff",
         )
     ]
+
+
+def test_boolean_default_false():
+    def code(foo: bool = False):
+        pass
+
+    assert simplecli.extract_code_params(code) == [
+        simplecli.Param(
+            name="foo",
+            annotation=bool,
+            default=False,
+            value=False,
+        ),
+     ]
+
+
+def test_boolean_default_false_set_value():
+    def code(foo: bool = False):
+        pass
+
+    params = simplecli.extract_code_params(code)
+    params[0].set_value(True)
+    assert params == [
+        simplecli.Param(
+            name="foo",
+            annotation=bool,
+            default=False,
+            value=True,
+        ),
+     ]
