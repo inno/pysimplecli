@@ -12,7 +12,7 @@ def test_clean_args_named_value():
 def test_clean_args_named_flag():
     assert simplecli.clean_args(["--quux"]) == (
         [],
-        {"quux": simplecli.TrueIfBool},
+        {"quux": simplecli.DefaultIfBool},
     )
 
 

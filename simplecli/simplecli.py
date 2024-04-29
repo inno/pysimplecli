@@ -21,7 +21,7 @@ from typing import (
 _wrapped = False
 Empty = inspect._empty
 # Overloaded placeholder for a potential boolean
-TrueIfBool = "Crazy going slowly am I, 6, 5, 4, 3, 2, 1, switch!"
+DefaultIfBool = "Crazy going slowly am I, 6, 5, 4, 3, 2, 1, switch!"
 
 ValueType = Union[bool, float, int, str]
 ArgDict = dict[str, ValueType]
@@ -151,13 +151,16 @@ class Param(inspect.Parameter):
         # Handle datatypes
         args = get_args(self.annotation)
         if not args:
-            if value is TrueIfBool:
+            if value is DefaultIfBool:
                 if self.annotation is not bool:
                     print(
                         f"Error: argument '{self.help_name}' "
                         "requires a value"
                     )
                     exit()
+                elif self.default != Empty:
+                    self._value = self.annotation(self.default)
+                    return
                 else:
                     self._value = self.annotation(True)
                     return
@@ -197,9 +200,8 @@ def clean_args(argv: list[str]) -> tuple[ArgList, ArgDict]:
         double_hyphen = re.match(r"--([\w-]+)(?:=(.+))?", arg)
         if double_hyphen:
             value = double_hyphen.groups()[1]
-            # XXX Bug for non-boolean values. Also ignores defaults for bool
             if value is None:
-                value = TrueIfBool
+                value = DefaultIfBool
             # Translate hyphens to underscores
             kw_args[double_hyphen.groups()[0].replace("-", "_")] = value
         else:
