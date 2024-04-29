@@ -41,6 +41,18 @@ class Param(inspect.Parameter):
     def __init__(self, *argv: Any, **kwargs: Any) -> None:
         if "kind" not in kwargs:
             kwargs["kind"] = inspect.Parameter.POSITIONAL_OR_KEYWORD
+        for required_arg in ("annotation", "name"):
+            if required_arg not in kwargs:
+                raise TypeError(
+                    f"needs keyword-only argument '{required_arg}'"
+                )
+        if kwargs["annotation"] not in get_args(ValueType):
+            if get_origin(kwargs["annotation"]) is not Union:
+                raise ValueError(
+                    "annotation type "
+                    f"'{type(kwargs['annotation']).__name__}' "
+                    "is not currently supported!"
+                )
         param_description = str(kwargs.pop("description", ""))
         param_line = str(kwargs.pop("line", ""))
         param_value = kwargs.pop("value", Empty)
@@ -58,7 +70,8 @@ class Param(inspect.Parameter):
         if not isinstance(other, Param):
             return NotImplemented
         return (
-            self.description == other.description
+            self.name == other.name
+            and self.description == other.description
             and self.default == other.default
             and self.required == other.required
             and self.optional == other.optional
@@ -73,8 +86,8 @@ class Param(inspect.Parameter):
             f"annotation={self.help_type} "
             f"description='{self.description}' "
             f"default={default} "
-            f"required='{self.required}' "
-            f"optional='{self.optional}' "
+            f"required={self.required} "
+            f"optional={self.optional} "
             f"value={value} "
         )
 
@@ -84,8 +97,9 @@ class Param(inspect.Parameter):
 
     @property
     def help_type(self) -> str:
-        if isinstance(self.annotation, list):
-            return f"[{[a.__name__ for a in self.annotation]}]"
+        if get_origin(self.annotation) is Union:
+            typelist = ", ".join([a.__name__ for a in self.datatypes])
+            return f"[{typelist}]"
         return self.annotation.__name__
 
     @property
@@ -123,8 +137,6 @@ class Param(inspect.Parameter):
         args = get_args(self.annotation)
         if args:
             return list(args)
-        elif isinstance(self.annotation, list):
-            return self.annotation
         return [self.annotation]
 
     def validate(self, value: ValueType) -> bool:
@@ -132,40 +144,33 @@ class Param(inspect.Parameter):
         for expected_type in self.datatypes:
             try:
                 expected_type(value)
-                passed = True
-                break
+                return True
             except ValueError:
                 pass
         return passed
 
     def set_value(self, value: ValueType) -> None:
         if self.validate(value) is False:
-            print(
-                f"Error: '{self.help_name}' has an invalid value. "
-                f"Please pass a value of type {self.help_type}!"
+            raise ValueError(
+                f"'{self.help_name}' must be of type {self.help_type}"
             )
-            exit()
         # Handle datatypes
         args = get_args(self.annotation)
-        if not args:
-            if value is DefaultIfBool:
-                if self.annotation is not bool:
-                    print(
-                        f"Error: argument '{self.help_name}' "
-                        "requires a value"
-                    )
-                    exit()
-                elif self.default != Empty:
-                    self._value = self.annotation(self.default)
-                    return
-                else:
-                    self._value = self.annotation(True)
-                    return
-            self._value = self.annotation(value)
+        if args:
+            for type_arg in args:
+                with contextlib.suppress(TypeError):
+                    self._value = type_arg(value)
             return
-        for type_arg in args:
-            with contextlib.suppress(TypeError):
-                self._value = type_arg(value)
+        if value is DefaultIfBool:
+            if self.annotation is not bool:
+                raise ValueError(f"'{self.help_name}' requires a value")
+            if self.default != Empty:
+                self._value = self.annotation(self.default)
+                return
+            else:
+                self._value = self.annotation(True)
+                return
+        self._value = self.annotation(value)
 
 
 def tokenize_string(string: str) -> Generator[TokenInfo, None, None]:
@@ -238,16 +243,20 @@ def params_to_kwargs(
 
     missing_params = []
 
-    for param in params:
-        # Positional arguments take precedence
-        if pos_args:
-            param.set_value(pos_args.pop(0))
-        elif param.name in kw_args:
-            param.set_value(kw_args[param.name])
-            continue
-        elif param.required:
-            missing_params.append(param)
-            continue
+    try:
+        for param in params:
+            # Positional arguments take precedence
+            if pos_args:
+                param.set_value(pos_args.pop(0))
+            elif param.name in kw_args:
+                param.set_value(kw_args[param.name])
+                continue
+            elif param.required:
+                missing_params.append(param)
+                continue
+    except ValueError as e:
+        print(e.args[0])
+        exit()
 
     if pos_args:
         print("Error, too many positional arguments!")
