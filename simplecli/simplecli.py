@@ -198,18 +198,18 @@ def clean_args(argv: list[str]) -> tuple[ArgList, ArgDict]:
     kw_args: ArgDict = {}
     for arg in argv:
         double_hyphen = re.match(r"--([\w-]+)(?:=(.+))?", arg)
-        if double_hyphen:
-            value = double_hyphen.groups()[1]
-            if value is None:
-                value = DefaultIfBool
-            # Translate hyphens to underscores
-            kw_args[double_hyphen.groups()[0].replace("-", "_")] = value
-        else:
+        if not double_hyphen:
             pos_args.append(arg)
+            continue
+        value = double_hyphen.groups()[1]
+        if value is None:
+            value = DefaultIfBool
+        # Translate hyphens to underscores
+        kw_args[double_hyphen.groups()[0].replace("-", "_")] = value
     return pos_args, kw_args
 
 
-def parse_args(
+def params_to_kwargs(
     params: list[Param],
     docstring: str = "",
     filename: str = sys.argv[0],
@@ -278,19 +278,16 @@ def wrap(func: Callable[..., Any]) -> None:
         print("Error, sorry only ONE `@wrap` decorator allowed!")
         exit()
     _wrapped = True
-    params = extract_code_params(code=func)
-    docstring = func.__doc__ or ""
-    kwargs = parse_args(
-        params=params,
-        docstring=format_docstring(docstring),
+    kwargs = params_to_kwargs(
+        params=extract_code_params(code=func),
+        docstring=format_docstring(func.__doc__ or ""),
     )
     func(**kwargs)
 
 
-def extract_code_params(code: Callable[..., Any]) -> list[Param]:
-    tokens = tokenize_string(inspect.getsource(code))
+def code_to_ordered_params(code: Callable[..., Any]) -> OrderedDict:
     signature = inspect.signature(code)
-    ordered_params = OrderedDict(
+    return OrderedDict(
         (
             k,
             Param(
@@ -302,18 +299,25 @@ def extract_code_params(code: Callable[..., Any]) -> list[Param]:
         )
         for k, v in signature.parameters.items()
     )
-    hints = {k: v.annotation for k, v in ordered_params.items()}
-    attrs = hints.copy()
+
+
+def hints_from_ordered_params(ordered_params: OrderedDict) -> dict[str, type]:
+    hints = {k: v.annotation for k, v in ordered_params.items()}.copy()
     # We don't care about the return value of the entrypoint
-    if "return" in attrs:
-        attrs.pop("return")
+    if "return" in hints:
+        hints.pop("return")
+    return hints
+
+
+def extract_code_params(code: Callable[..., Any]) -> list[Param]:
+    tokens = tokenize_string(inspect.getsource(code))
+    ordered_params = code_to_ordered_params(code)
+    hints = hints_from_ordered_params(ordered_params)
     params: list[Param] = []
-
     prepended_comment = ""
-
     param = None
 
-    while attrs:
+    while hints:
         token = next(tokens)
         if token.exact_type == tokenize.COMMENT:
             prepended_comment = token.string
@@ -327,9 +331,9 @@ def extract_code_params(code: Callable[..., Any]) -> list[Param]:
                 param = None
             continue
         elif token.exact_type == tokenize.NAME:
-            if token.string not in attrs:
+            if token.string not in hints:
                 continue
-            attrs.pop(token.string)
+            hints.pop(token.string)
             param = ordered_params[token.string]
             # Catch in the event a tokenize.NL is coming soon
             try:
