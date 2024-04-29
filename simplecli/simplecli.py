@@ -6,7 +6,6 @@ import sys
 import tokenize
 from dataclasses import dataclass
 from collections.abc import Generator
-from types import MappingProxyType
 from typing import (
     Any,
     Callable,
@@ -14,7 +13,6 @@ from typing import (
     Union,
     get_args,
     get_origin,
-    get_type_hints,
 )
 
 
@@ -24,7 +22,7 @@ from typing import (
 # Overloaded placeholder for a potential boolean
 TrueIfBool = "Crazy going slowly am I, 6, 5, 4, 3, 2, 1, switch!"
 
-ArgList = dict[str, Union[bool, str]]
+ArgDict = dict[str, Union[bool, str]]
 ValueType = Union[bool, float, int, str]
 
 
@@ -96,12 +94,6 @@ def tokenize_code(
     return tokenize_string(inspect.getsource(code))
 
 
-def code_params(
-    code: Callable[..., Any],
-) -> MappingProxyType[str, inspect.Parameter]:
-    return inspect.signature(code).parameters
-
-
 def help_text(filename: str, args: list[Arg], docstring: str = "") -> None:
     # XXX build list of arguments for 'usage'
     print(f"Usage: \n\t{filename} ...\n")
@@ -120,8 +112,8 @@ def help_text(filename: str, args: list[Arg], docstring: str = "") -> None:
         print(f" --{arg.help_name}\t\t({arg_types})\t{arg.description}")
 
 
-def clean_passed_args(argv: list[str]) -> ArgList:
-    passed_args: ArgList = {}
+def clean_passed_args(argv: list[str]) -> ArgDict:
+    passed_args: ArgDict = {}
     in_single = False  # Maintain state as single is per-record
     previous_single = ""
     for passed_arg in argv:
@@ -149,7 +141,7 @@ def clean_passed_args(argv: list[str]) -> ArgList:
     return passed_args
 
 
-def process_arg(arg: Arg, passed_args: ArgList) -> None:
+def process_arg(arg: Arg, passed_args: ArgDict) -> None:
     if arg.name in passed_args:
         if arg.validate(passed_args[arg.name]) is False:
             print(f"Error: argument '{arg.help_name}' has an invalid value")
@@ -180,7 +172,7 @@ def process_arg(arg: Arg, passed_args: ArgList) -> None:
 def parse_args(
     args: list[Arg],
     docstring: str = "",
-) -> ArgList:
+) -> ArgDict:
     filename = sys.argv[0]
     argv = sys.argv[1:]
 
@@ -226,19 +218,12 @@ def wrap(func: Callable[..., Any]) -> None:
 
 
 def extract_code_args(code: Callable[..., Any]) -> list[Arg]:
-    return extract_args(
-        tokens=tokenize_code(code),
-        hints=get_type_hints(code),
-        params=inspect.signature(code).parameters,
-    )
-
-
-def extract_args(
-    hints: dict[str, Any],
-    tokens: Generator[tokenize.TokenInfo, None, None],
-    params: MappingProxyType[str, inspect.Parameter],
-) -> list[Arg]:
+    tokens = tokenize_code(code)
+    signature = inspect.signature(code)
+    params = signature.parameters
+    hints = {k: v.annotation for k, v in params.items()}
     attrs = hints.copy()
+    print(attrs)
     # We don't care about the return value of the entrypoint
     if "return" in attrs:
         attrs.pop("return")
