@@ -6,7 +6,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: ["windows-latest", "ubuntu-latest"]
+        os: [windows-latest, ubuntu-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     runs-on: ${{ matrix.os }}
     steps:
@@ -32,6 +32,6 @@ jobs:
         if: ${{ always() }}
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4.0.1
-        if: matrix.runs-on == "ubuntu-latest" && matrix.python-version == "3.12"
+        if: matrix.runs-on == 'ubuntu-latest' && matrix.python-version == '3.12'
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
