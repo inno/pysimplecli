@@ -57,15 +57,28 @@ def test_string_with_inline_comment():
         pass
 
     params = simplecli.extract_code_params(code)
-    expected_param = simplecli.Param(
-        name="bar",
-        line="        bar: str  # input for bar\n",
-        annotation=str,
-        required=True,
-        optional=False,
-    )
-    assert params == [expected_param]
-    assert params[0].description == "input for bar"
+    assert params == [
+        simplecli.Param(
+            name="bar",
+            description="input for bar",
+            annotation=str,
+            required=True,
+            optional=False,
+        )
+    ]
+    assert params == [
+        simplecli.Param(
+            name="bar",
+            description="input for bar",
+            annotation=str,
+        )
+    ]
+    assert params != [
+        simplecli.Param(
+            name="bar",
+            annotation=str,
+        )
+    ]
 
 
 def test_string_with_prepended_comment():
@@ -78,12 +91,11 @@ def test_string_with_prepended_comment():
     params = simplecli.extract_code_params(code)
     expected_param = simplecli.Param(
         name="bar",
-        line="        # input for bar\n        bar: str\n",
         annotation=str,
         required=True,
+        description="input for bar"
     )
     assert params == [expected_param]
-    assert params[0].description == "input for bar"
 
 
 def test_int_with_oneline_comment():
@@ -93,12 +105,12 @@ def test_int_with_oneline_comment():
     params = simplecli.extract_code_params(code)
     expected_param = simplecli.Param(
         name="foo_bar",
-        line="    def code(foo_bar: int = 10):  # testfoo 123\n",
+        description="testfoo 123",
         annotation=int,
         default=10,
+        required=False,
     )
     assert params == [expected_param]
-    assert params[0].description == "testfoo 123"
 
 
 def test_float_with_oneline_comment():
@@ -108,12 +120,12 @@ def test_float_with_oneline_comment():
     params = simplecli.extract_code_params(code)
     expected_param = simplecli.Param(
         name="pi",
-        line="    def code(pi: float = 3.1415):  # It's Pi\n",
+        description="It's Pi",
         annotation=float,
         default=3.1415,
+        required=False,
     )
     assert params == [expected_param]
-    assert params[0].description == "It's Pi"
 
 
 def test_str_optional_implied_none():
@@ -125,7 +137,6 @@ def test_str_optional_implied_none():
     params = simplecli.extract_code_params(code)
     expected_param = simplecli.Param(
         name="quux",
-        line="        quux: typing.Optional[str]\n",
         annotation=typing.Optional[str],
         required=False,
         optional=True,
@@ -165,30 +176,25 @@ def test_complex_with_heredoc():
     assert params == [
         simplecli.Param(
             name="foo",
-            line="        foo: int,\n",
             annotation=int,
             required=True,
             optional=False,
         ),
         simplecli.Param(
             name="quux",
-            line="        quux: typing.Optional[str],\n",
             annotation=typing.Optional[str],
             required=False,
             optional=True,
         ),
         simplecli.Param(
             name="bar",
-            line='        bar: str = "testing",  # Only change if necessary\n',
             annotation=str,
+            description="Only change if necessary",
             default="testing",
             required=False,
             optional=False,
         ),
     ]
-    assert params[0].description == ""
-    assert params[1].description == ""
-    assert params[2].description == "Only change if necessary"
 
 
 def test_integer_with_variable_oneline():
@@ -205,3 +211,101 @@ def test_integer_with_variable_oneline():
         default=321,
     )
     assert params == [expected_param]
+
+
+def test_multiline_offset():
+    def code(foo: int,
+             bar: int):
+        pass
+
+    params = simplecli.extract_code_params(code)
+    assert params == [
+        simplecli.Param(
+            name="foo",
+            annotation=int,
+        ),
+        simplecli.Param(
+            name="bar",
+            annotation=int,
+        )
+    ]
+
+
+def test_multiline_offset_default():
+    def code(foo: int,
+             bar: int = 567):
+        pass
+
+    params = simplecli.extract_code_params(code)
+    assert params == [
+        simplecli.Param(
+            name="foo",
+            annotation=int,
+        ),
+        simplecli.Param(
+            name="bar",
+            annotation=int,
+            default=567,
+        )
+    ]
+
+
+def test_multiline_comment_offset():
+    def code(foo: int,  # stuff
+             bar: int):
+        pass
+
+    params = simplecli.extract_code_params(code)
+    assert params == [
+        simplecli.Param(
+            name="foo",
+            annotation=int,
+            description="stuff",
+        ),
+        simplecli.Param(
+            name="bar",
+            annotation=int,
+        )
+    ]
+
+
+def test_multiline_comment_offset_multiple():
+    def code(foo: int,  # stuff
+             # things
+             bar: int):
+        pass
+
+    params = simplecli.extract_code_params(code)
+    assert params == [
+        simplecli.Param(
+            name="foo",
+            annotation=int,
+            description="stuff",
+        ),
+        simplecli.Param(
+            name="bar",
+            annotation=int,
+            description="things",
+        )
+    ]
+
+
+def test_multiline_comment_offset_multiple_inline():
+    def code(foo: int,  # stuff
+             bar: int   # more stuff
+             ):
+        pass
+
+    params = simplecli.extract_code_params(code)
+    assert params == [
+        simplecli.Param(
+            name="foo",
+            annotation=int,
+            description="stuff",
+        ),
+        simplecli.Param(
+            name="bar",
+            annotation=int,
+            description="more stuff",
+        )
+    ]

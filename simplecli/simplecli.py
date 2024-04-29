@@ -24,25 +24,55 @@ TrueIfBool = "Crazy going slowly am I, 6, 5, 4, 3, 2, 1, switch!"
 ValueType = Union[bool, float, int, str]
 ArgDict = dict[str, ValueType]
 ArgList = list[str]
+Empty = inspect._empty
 
 
 class Param(inspect.Parameter):
     required: bool = True
     optional: bool = False
     description: str = ""
-    _value: Any = inspect._empty
+    _value: Any = Empty
 
     def __init__(self, *argv: Any, **kwargs: Any) -> None:
         if "kind" not in kwargs:
             kwargs["kind"] = inspect.Parameter.POSITIONAL_OR_KEYWORD
-
+        param_description = str(kwargs.pop("description", ""))
         param_line = str(kwargs.pop("line", ""))
         param_required = bool(kwargs.pop("required", True))
         param_optional = bool(kwargs.pop("optional", False))
         super().__init__(*argv, **kwargs)
         self.required = param_required
+        self.description = param_description
         self.optional = param_optional
-        self.set_line(param_line)
+        if not self.description:
+            self.set_line(param_line)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Param):
+            return NotImplemented
+        if (
+            self.description != other.description
+            or self.default != other.default
+            or self.required != other.required
+            or self.optional != other.optional
+        ):
+            return False
+        if self._value != Empty or self.default != Empty:
+            if other._value != Empty or other.default != Empty:
+                if self.value != other.value:
+                    return False
+        return True
+
+    def __str__(self) -> str:
+        return (
+            f"{self.name}: "
+            f"annotation={self.help_type} "
+            f"description='{self.description}' "
+            f"default='{self.default}' "
+            f"required='{self.required}' "
+            f"optional='{self.optional}' "
+            f"value='{self.value}'"
+        )
 
     @property
     def help_name(self) -> str:
@@ -56,9 +86,9 @@ class Param(inspect.Parameter):
 
     @property
     def value(self) -> ValueType:
-        if self._value != inspect._empty:
+        if self._value != Empty:
             return self._value
-        if self.default != inspect._empty:
+        if self.default != Empty:
             return self.default
         print(
             "Error, empty value and default for {self.help_name}.. "
@@ -81,7 +111,7 @@ class Param(inspect.Parameter):
             if token.string == "Optional":
                 self.required = False
                 self.optional = True
-        if self.default is not inspect._empty:
+        if self.default is not Empty:
             self.required = False
 
         for token in tokenize_string(line):
@@ -271,17 +301,37 @@ def extract_code_params(code: Callable[..., Any]) -> list[Param]:
 
     prepended_comment = ""
 
+    param = None
+
     while attrs:
         token = next(tokens)
         if token.exact_type == tokenize.COMMENT:
-            prepended_comment = token.line
-        elif token.exact_type == tokenize.NAME:
-            if token.string in attrs:
-                attrs.pop(token.string)
-                param = ordered_params[token.string]
-                param.set_line(token.line)
-                if prepended_comment:
-                    param._set_description(prepended_comment)
+            prepended_comment = token.string
+        # tokenize.NL -
+        # when a logical line of code is continued over multiple lines
+        elif token.exact_type == tokenize.NL:
+            if param:
+                param.set_line(prepended_comment)
                 params.append(param)
                 prepended_comment = ""
+                param = None
+            continue
+        elif token.exact_type == tokenize.NAME:
+            if token.string not in attrs:
+                continue
+            attrs.pop(token.string)
+            param = ordered_params[token.string]
+            # Catch in the event a tokenize.NL is coming soon
+            try:
+                param.set_line(token.line)
+            except tokenize.TokenError:
+                continue
+            if prepended_comment:
+                param._set_description(prepended_comment)
+            params.append(param)
+            prepended_comment = ""
+            param = None
+    if param:
+        params.append(param)
+
     return params

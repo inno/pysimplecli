@@ -10,7 +10,7 @@ def test_int_no_default_no_comment():
         annotation=int,
     )
     assert arg.datatypes == [int]
-    assert arg.default is simplecli.inspect._empty
+    assert arg.default is simplecli.Empty
     assert arg.optional is False
     assert arg.required is True
     assert arg.validate("test") is False
@@ -27,7 +27,7 @@ def test_str_no_default_no_comment():
         annotation=str,
     )
     assert arg.datatypes == [str]
-    assert arg.default is simplecli.inspect._empty
+    assert arg.default is simplecli.Empty
     assert arg.optional is False
     assert arg.required is True
     assert arg.validate("test") is True
@@ -44,7 +44,7 @@ def test_str_no_default():
         annotation=str,
     )
     assert arg.datatypes == [str]
-    assert arg.default is simplecli.inspect._empty
+    assert arg.default is simplecli.Empty
     assert arg.optional is False
     assert arg.required is True
     assert arg.validate("test") is True
@@ -109,7 +109,7 @@ def test_str_optional():
         annotation=Optional[str],
     )
     assert arg.datatypes == [str, type(None)]
-    assert arg.default is simplecli.inspect._empty
+    assert arg.default is simplecli.Empty
     assert arg.optional is True
     assert arg.required is False
     assert arg.validate("test") is True
