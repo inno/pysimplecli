@@ -190,12 +190,14 @@ def parse_args(args: list[Arg], docstring: str = "") -> ArgList:
 
 
 def format_docstring(docstring: str) -> str:
-    docstring = docstring.rstrip()
-
     # "Spaces are the preferred indentation method."
     # https://peps.python.org/pep-0008/#tabs-or-spaces
+    docstring = docstring.rstrip()
+    match = re.match(r"^\s*", docstring)
+    if not match:
+        return docstring
     return re.sub(
-        " " * (re.match(r"^\s*", docstring).span()[1] - 1),
+        " " * (match.span()[1] - 1),
         "",
         docstring,
         flags=re.MULTILINE,
