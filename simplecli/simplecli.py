@@ -107,15 +107,13 @@ class Param(inspect.Parameter):
     def parse_line(self, line: str) -> bool:
         self.description = ""
         try:
-            tokens = [
-                token
-                for token in tokenize_string(line)
-                if token.type in (COMMENT, NAME, NUMBER, STRING)
-            ]
+            tokens = list(tokenize_string(line))
         except TokenError:
             return False
 
         for token in tokens:
+            if token.type not in (COMMENT, NAME, NUMBER, STRING):
+                continue
             if token.exact_type is COMMENT:
                 self._set_description(token.string)
             if token.string == "Optional":
