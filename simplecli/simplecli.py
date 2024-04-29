@@ -117,7 +117,15 @@ class Param(inspect.Parameter):
             return
         self.description = re.sub(r"^#\s+", "", line.lstrip()).strip()
 
-    def parse_or_prepend(self, line: str, comment: str) -> bool:
+    def parse_or_prepend(
+        self,
+        line: str,
+        comment: str,
+        overwrite: bool = True,
+    ) -> bool:
+        if not overwrite and self.description:
+            return False
+
         line_set = self.parse_line(line)
         if comment:
             self._set_description(comment)
@@ -348,25 +356,24 @@ def extract_code_params(code: Callable[..., Any]) -> list[Param]:
     param = None
     params: list[Param] = []
 
-    while hints:
-        token = next(tokens)
+    depth = 0
+    for token in tokens:
+        depth += 1
         if token.exact_type is COMMENT:
             comment = token.string
             if params and param is None:
                 params[-1].parse_or_prepend(token.line, comment)
                 comment = ""
+            elif param:
+                param.parse_or_prepend(token.line, comment, False)
             continue
         # tokenize.NL -
         # when a logical line of code is continued over multiple lines
-        if token.exact_type is NL:
-            if not param:
-                continue
+        if token.exact_type is NL and param:
             param.parse_or_prepend(token.line, comment)
-        elif token.exact_type is NAME:
-            if token.string not in hints:
-                continue
+        elif token.exact_type is NAME and token.string in hints:
             hints.pop(token.string)
-            param = ordered_params[token.string]
+            param = ordered_params.pop(token.string)
             if not param.parse_or_prepend(token.line, comment):
                 # Catch in the event a tokenize.NL is coming soon
                 continue
@@ -375,5 +382,6 @@ def extract_code_params(code: Callable[..., Any]) -> list[Param]:
         comment = ""
         params.append(param)
         param = None
-
+    if param:
+        params.append(param)
     return params
