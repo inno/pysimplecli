@@ -1,0 +1,102 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.coverage.report]
+show_missing = true
+omit = [
+    "*/usr/local/lib*",
+    "*/lib/python*/*",
+    "lib/*",
+    "src/*",
+    "tests/*",
+]
+
+[tool.coverage.run]
+branch = true
+command_line = "-m pytest"
+omit = [
+    "*/usr/local/lib*",
+    "*/lib/python*/*",
+    "lib/*",
+    "src/*",
+    "tests/*",
+]
+
+[tool.flake8]
+per-file-ignores = """
+    tests: S101
+"""
+
+[tool.poetry]
+name = "simplecli"
+version = "0.1.0"
+description = ""
+authors = ["Clif Bratcher <cebratcher@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+[tool.poetry.group.test.dependencies]
+pytest ="*"
+typing_extensions = "*"
+
+[tool.poetry.group.dev.dependencies]
+bandit = "^1.7.8"
+coverage = "^7.4.4"
+flake8 = "^7.0.0"
+ruff = "^0.3.4"
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+]
+
+[tool.ruff]
+line-length = 79
+indent-width = 4
+# output-format = "github"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint]
+preview = true
+explicit-preview-rules = true
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+select = [
+    "ANN",  # flake8-annotations
+    "B",  # flake8-bugbear
+    "E",  # pycodestyle
+    "F",  # Pyflakes
+    "RET",  # flake8-return
+    "SIM",  # flake8-simplify
+    "S",  # flake8-bandit
+    "UP",  # pyupgrade
+    "E203",
+]
+
+ignore = [
+    "ANN101",  # No need to annotate 'self'
+    "UP007",  # Do not recomment translating Union to X | Y
+    "SIM102",  # Allow nested `if` for ease of reading
+    "RET505",  # Don't force `if` when `elif` follows a return
+    "S101",  # Use of `assert` detected
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "ANN001",
+    "ANN201",
+    "ANN202",
+]
+
+[tool.ruff.lint.isort]
+no-sections = true
+
+[tool.ruff.lint.flake8-annotations]
+allow-star-arg-any = true
