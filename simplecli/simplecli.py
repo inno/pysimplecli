@@ -22,6 +22,7 @@ from typing import (
 TrueIfBool = "Crazy going slowly am I, 6, 5, 4, 3, 2, 1, switch!"
 
 ArgDict = dict[str, Union[bool, str]]
+ArgList = list[str]
 ValueType = Union[bool, float, int, str]
 
 
@@ -88,6 +89,36 @@ class Param(inspect.Parameter):
                 pass
         return passed
 
+    def process_args(self, pos_args: ArgList, kw_args: ArgDict) -> None:
+        if self.name in kw_args:
+            if self.validate(kw_args[self.name]) is False:
+                print(
+                    f"Error: argument '{self.help_name}' has an invalid value"
+                )
+                # XXX Display the expected info?
+                exit()
+            # Handle datatypes
+            type_args = get_args(self.annotation)
+            if not type_args:
+                if kw_args[self.name] is TrueIfBool:
+                    if self.annotation is not bool:
+                        print(
+                            f"Error: argument '{self.help_name}' "
+                            "requires a value"
+                        )
+                        exit()
+                    else:
+                        kw_args[self.name] = True
+                kw_args[self.name] = self.annotation(kw_args[self.name])
+                return
+            for type_arg in type_args:
+                with contextlib.suppress(TypeError):
+                    kw_args[self.name] = type_arg(kw_args[self.name])
+            return
+        if self.required is True:
+            print(f"Error: argument '{self.help_name}' is required!")
+            exit()
+
 
 def tokenize_string(string: str) -> Generator[tokenize.TokenInfo, None, None]:
     return tokenize.generate_tokens(io.StringIO(string).readline)
@@ -111,49 +142,22 @@ def help_text(filename: str, args: list[Param], docstring: str = "") -> None:
         print(f" --{arg.help_name}\t\t({arg_types})\t{arg.description}")
 
 
-def clean_passed_args(argv: list[str]) -> ArgDict:
-    passed_args: ArgDict = {}
-    for passed_arg in argv:
-        double_hyphen = re.match(r"--([\w-]+)(?:=(.+))?", passed_arg)
+def clean_args(argv: list[str]) -> tuple[ArgList, ArgDict]:
+    pos_args: ArgList = []
+    kw_args: ArgDict = {}
+    for arg in argv:
+        double_hyphen = re.match(r"--([\w-]+)(?:=(.+))?", arg)
         if double_hyphen:
             value = double_hyphen.groups()[1]
             # XXX Bug for non-boolean values. This
             if value is None:
                 value = TrueIfBool
             # Translate hyphens to underscores
-            passed_args[double_hyphen.groups()[0].replace("-", "_")] = value
+            kw_args[double_hyphen.groups()[0].replace("-", "_")] = value
         else:
-            print(f"wut: '{passed_arg}'")
-        # XXX positional based on required args
-    return passed_args
-
-
-def process_arg(arg: Param, passed_args: ArgDict) -> None:
-    if arg.name in passed_args:
-        if arg.validate(passed_args[arg.name]) is False:
-            print(f"Error: argument '{arg.help_name}' has an invalid value")
-            # XXX Display the expected info?
-            exit()
-        # Handle datatypes
-        type_args = get_args(arg.annotation)
-        if not type_args:
-            if passed_args[arg.name] is TrueIfBool:
-                if arg.annotation is not bool:
-                    print(
-                        f"Error: argument '{arg.help_name}' requires a value"
-                    )
-                    exit()
-                else:
-                    passed_args[arg.name] = True
-            passed_args[arg.name] = arg.annotation(passed_args[arg.name])
-            return
-        for type_arg in type_args:
-            with contextlib.suppress(TypeError):
-                passed_args[arg.name] = type_arg(passed_args[arg.name])
-        return
-    if arg.required is True:
-        print(f"Error: argument '{arg.help_name}' is required!")
-        exit()
+            pos_args.append(arg)
+    print(pos_args, kw_args)
+    return pos_args, kw_args
 
 
 def parse_args(
@@ -163,20 +167,20 @@ def parse_args(
     filename = sys.argv[0]
     argv = sys.argv[1:]
 
-    passed_args = clean_passed_args(argv)
-    if "help" in passed_args or "h" in passed_args:
+    pos_args, kw_args = clean_args(argv)
+    if "help" in kw_args or "h" in kw_args:
         help_text(filename, args, docstring)
         exit()
 
     for arg in args:
-        process_arg(arg, passed_args)
+        arg.process_args(pos_args, kw_args)
 
-    for k, _ in passed_args.items():
+    for k, _ in kw_args.items():
         if k not in [a.name for a in args]:
             print(f"Error: Unexpected argument '{k}'")
             exit()
 
-    return passed_args
+    return kw_args
 
 
 def format_docstring(docstring: str) -> str:
@@ -197,11 +201,11 @@ def format_docstring(docstring: str) -> str:
 def wrap(func: Callable[..., Any]) -> None:
     args = extract_code_args(code=func)
     docstring = func.__doc__ or ""
-    clean_args = parse_args(
+    parsed_args = parse_args(
         args=args,
         docstring=format_docstring(docstring),
     )
-    func(**clean_args)
+    func(**parsed_args)
 
 
 def extract_code_args(code: Callable[..., Any]) -> list[Param]:
