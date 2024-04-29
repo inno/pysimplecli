@@ -3,9 +3,18 @@ import inspect
 import io
 import re
 import sys
-import tokenize
 from collections import OrderedDict
 from collections.abc import Generator
+from tokenize import (
+    COMMENT,
+    NAME,
+    NL,
+    NUMBER,
+    STRING,
+    TokenError,
+    TokenInfo,
+    generate_tokens,
+)
 from typing import (
     Any,
     Callable,
@@ -23,7 +32,7 @@ Empty = inspect._empty
 # Overloaded placeholder for a potential boolean
 DefaultIfBool = "Crazy going slowly am I, 6, 5, 4, 3, 2, 1, switch!"
 
-ValueType = Union[bool, float, int, str]
+ValueType = Union[type[Empty], bool, float, int, str]
 ArgDict = dict[str, ValueType]
 ArgList = list[str]
 
@@ -67,14 +76,16 @@ class Param(inspect.Parameter):
         return True
 
     def __str__(self) -> str:
+        default = "Empty" if self.default is Empty else f"'{self.default}'"
+        value = "Empty" if self.value is Empty else f"'{self.value}'"
         return (
             f"{self.name}: "
             f"annotation={self.help_type} "
             f"description='{self.description}' "
-            f"default='{self.default}' "
+            f"default={default} "
             f"required='{self.required}' "
             f"optional='{self.optional}' "
-            f"value='{self.value}'"
+            f"value={value} "
         )
 
     @property
@@ -93,33 +104,31 @@ class Param(inspect.Parameter):
             return self._value
         if self.default != Empty:
             return self.default
-        print(
-            f"Error, empty value and default for {self.help_name}.. "
-            "I'm not sure what to do!"
-        )
-        exit()
+        return Empty
 
     def _set_description(self, line: str) -> None:
         self.description = re.sub(r"^#\s+", "", line.lstrip()).strip()
 
-    def set_line(self, line: str) -> None:
+    def set_line(self, line: str) -> bool:
         self.description = ""
-        valid_tokens = (tokenize.NAME, tokenize.NUMBER, tokenize.STRING)
-        tokens = list(
-            tokenize.generate_tokens(io.StringIO(line).readline),
-        )
-        # Filter out cruft
-        tokens = [t for t in tokens if t.type in valid_tokens]
+        try:
+            tokens = [
+                token
+                for token in tokenize_string(line)
+                if token.type in (COMMENT, NAME, NUMBER, STRING)
+            ]
+        except TokenError:
+            return False
+
         for token in tokens:
+            if token.exact_type is COMMENT:
+                self._set_description(token.string)
             if token.string == "Optional":
                 self.required = False
                 self.optional = True
         if self.default is not Empty:
             self.required = False
-
-        for token in tokenize_string(line):
-            if token.exact_type == tokenize.COMMENT:
-                self._set_description(token.string)
+        return True
 
     @property
     def datatypes(self) -> list[type]:
@@ -171,8 +180,8 @@ class Param(inspect.Parameter):
                 self._value = type_arg(value)
 
 
-def tokenize_string(string: str) -> Generator[tokenize.TokenInfo, None, None]:
-    return tokenize.generate_tokens(io.StringIO(string).readline)
+def tokenize_string(string: str) -> Generator[TokenInfo, None, None]:
+    return generate_tokens(io.StringIO(string).readline)
 
 
 def help_text(filename: str, params: list[Param], docstring: str = "") -> None:
@@ -209,6 +218,25 @@ def clean_args(argv: list[str]) -> tuple[ArgList, ArgDict]:
     return pos_args, kw_args
 
 
+def check_for_unexpected_args(params: list[Param], kw_args: ArgDict) -> None:
+    for k, _ in kw_args.items():
+        if k not in [a.name for a in params]:
+            print(f"Error: Unexpected argument '{k}'")
+            exit()
+
+
+def missing_params_msg(missing_params: list[Param]) -> None:
+    print(
+        "Error, missing required "
+        f"argument{'s' if len(missing_params) > 1 else ''}:"
+    )
+    for param in missing_params:
+        help_line = f"\t--{param.help_name}\t({param.help_type})"
+        if param.description:
+            help_line += f" - {param.description}"
+        print(help_line)
+
+
 def params_to_kwargs(
     params: list[Param],
     docstring: str = "",
@@ -238,22 +266,10 @@ def params_to_kwargs(
         exit()
 
     if missing_params:
-        print(
-            "Error, missing required "
-            f"argument{'s' if len(missing_params) > 1 else ''}:"
-        )
-        for param in missing_params:
-            help_line = f"\t--{param.help_name}\t({param.help_type})"
-            if param.description:
-                help_line += f" - {param.description}"
-            print(help_line)
+        missing_params_msg(missing_params)
         exit()
 
-    for k, _ in kw_args.items():
-        if k not in [a.name for a in params]:
-            print(f"Error: Unexpected argument '{k}'")
-            exit()
-
+    check_for_unexpected_args(params, kw_args)
     return {param.name: param.value for param in params}
 
 
@@ -319,33 +335,30 @@ def extract_code_params(code: Callable[..., Any]) -> list[Param]:
 
     while hints:
         token = next(tokens)
-        if token.exact_type == tokenize.COMMENT:
+        if token.exact_type is COMMENT:
             prepended_comment = token.string
+            continue
         # tokenize.NL -
         # when a logical line of code is continued over multiple lines
-        elif token.exact_type == tokenize.NL:
-            if param:
-                param.set_line(prepended_comment)
-                params.append(param)
-                prepended_comment = ""
-                param = None
-            continue
-        elif token.exact_type == tokenize.NAME:
+        if token.exact_type is NL:
+            if not param:
+                continue
+            param.set_line(prepended_comment)
+        elif token.exact_type is NAME:
             if token.string not in hints:
                 continue
             hints.pop(token.string)
             param = ordered_params[token.string]
-            # Catch in the event a tokenize.NL is coming soon
-            try:
-                param.set_line(token.line)
-            except tokenize.TokenError:
-                continue
+            line_set = param.set_line(token.line)
             if prepended_comment:
                 param._set_description(prepended_comment)
-            params.append(param)
-            prepended_comment = ""
-            param = None
-    if param:
+            if not line_set:
+                # Catch in the event a tokenize.NL is coming soon
+                continue
+        else:
+            continue
         params.append(param)
+        prepended_comment = ""
+        param = None
 
     return params
