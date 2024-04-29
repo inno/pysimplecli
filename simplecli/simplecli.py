@@ -38,11 +38,6 @@ ArgList = list[str]
 
 
 class Param(inspect.Parameter):
-    required: bool = True
-    optional: bool = False
-    description: str = ""
-    _value: Any = Empty
-
     def __init__(self, *argv: Any, **kwargs: Any) -> None:
         if "kind" not in kwargs:
             kwargs["kind"] = inspect.Parameter.POSITIONAL_OR_KEYWORD
