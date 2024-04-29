@@ -62,18 +62,13 @@ class Param(inspect.Parameter):
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Param):
             return NotImplemented
-        if (
-            self.description != other.description
-            or self.default != other.default
-            or self.required != other.required
-            or self.optional != other.optional
-        ):
-            return False
-        if self._value != Empty or self.default != Empty:
-            if other._value != Empty or other.default != Empty:
-                if self.value != other.value:
-                    return False
-        return True
+        return (
+            self.description == other.description
+            and self.default == other.default
+            and self.required == other.required
+            and self.optional == other.optional
+            and self.value == other.value
+        )
 
     def __str__(self) -> str:
         default = "Empty" if self.default is Empty else f"'{self.default}'"
