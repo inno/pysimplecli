@@ -113,27 +113,15 @@ def help_text(filename: str, args: list[Param], docstring: str = "") -> None:
 
 def clean_passed_args(argv: list[str]) -> ArgDict:
     passed_args: ArgDict = {}
-    in_single = False  # Maintain state as single is per-record
-    previous_single = ""
     for passed_arg in argv:
         double_hyphen = re.match(r"--([\w-]+)(?:=(.+))?", passed_arg)
-        single_hyphen = re.match(r"-([\w-]+)", passed_arg)
         if double_hyphen:
-            in_single = False
             value = double_hyphen.groups()[1]
             # XXX Bug for non-boolean values. This
             if value is None:
                 value = TrueIfBool
             # Translate hyphens to underscores
             passed_args[double_hyphen.groups()[0].replace("-", "_")] = value
-        elif single_hyphen:
-            in_single = True
-            previous_single = single_hyphen.groups()[0].replace("-", "_")
-            # Assume single is boolean (may bite us if default is `False`)
-            passed_args[previous_single] = True
-        elif in_single:
-            in_single = False
-            passed_args[previous_single] = passed_arg
         else:
             print(f"wut: '{passed_arg}'")
         # XXX positional based on required args
