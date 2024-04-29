@@ -80,6 +80,7 @@ def test_string_with_prepended_comment():
         name="bar",
         line="        # input for bar\n        bar: str\n",
         annotation=str,
+        required=True,
     )
     assert args == [expected_arg]
     assert args[0].description == "input for bar"
