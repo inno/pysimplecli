@@ -21,15 +21,16 @@ from typing import (
 # Overloaded placeholder for a potential boolean
 TrueIfBool = "Crazy going slowly am I, 6, 5, 4, 3, 2, 1, switch!"
 
-ArgDict = dict[str, Union[bool, str]]
-ArgList = list[str]
 ValueType = Union[bool, float, int, str]
+ArgDict = dict[str, ValueType]
+ArgList = list[str]
 
 
 class Param(inspect.Parameter):
     required: bool = True
     optional: bool = False
     description: str = ""
+    _value: Any = inspect._empty
 
     def __init__(self, *argv: Any, **kwargs: Any) -> None:
         if "kind" not in kwargs:
@@ -46,6 +47,24 @@ class Param(inspect.Parameter):
     @property
     def help_name(self) -> str:
         return self.name.replace("_", "-")
+
+    @property
+    def help_type(self) -> str:
+        if isinstance(self.annotation, list):
+            return f"[{[a.__name__ for a in self.annotation]}]"
+        return self.annotation.__name__
+
+    @property
+    def value(self) -> ValueType:
+        if self._value != inspect._empty:
+            return self._value
+        if self.default != inspect._empty:
+            return self.default
+        print(
+            "Error, empty value and default for {self.help_name}.. "
+            "I'm not sure what to do!"
+        )
+        exit()
 
     def _set_description(self, line: str) -> None:
         self.description = re.sub(r"^#\s+", "", line.lstrip()).strip()
@@ -89,48 +108,44 @@ class Param(inspect.Parameter):
                 pass
         return passed
 
-    def process_args(self, pos_args: ArgList, kw_args: ArgDict) -> None:
-        if self.name in kw_args:
-            if self.validate(kw_args[self.name]) is False:
-                print(
-                    f"Error: argument '{self.help_name}' has an invalid value"
-                )
-                # XXX Display the expected info?
-                exit()
-            # Handle datatypes
-            type_args = get_args(self.annotation)
-            if not type_args:
-                if kw_args[self.name] is TrueIfBool:
-                    if self.annotation is not bool:
-                        print(
-                            f"Error: argument '{self.help_name}' "
-                            "requires a value"
-                        )
-                        exit()
-                    else:
-                        kw_args[self.name] = True
-                kw_args[self.name] = self.annotation(kw_args[self.name])
-                return
-            for type_arg in type_args:
-                with contextlib.suppress(TypeError):
-                    kw_args[self.name] = type_arg(kw_args[self.name])
-            return
-        if self.required is True:
-            print(f"Error: argument '{self.help_name}' is required!")
+    def set_value(self, value: ValueType) -> None:
+        if self.validate(value) is False:
+            print(
+                f"Error: '{self.help_name}' has an invalid value. "
+                f"Please pass a value of type {self.help_type}!"
+            )
             exit()
+        # Handle datatypes
+        args = get_args(self.annotation)
+        if not args:
+            if value is TrueIfBool:
+                if self.annotation is not bool:
+                    print(
+                        f"Error: argument '{self.help_name}' "
+                        "requires a value"
+                    )
+                    exit()
+                else:
+                    self._value = self.annotation(True)
+                    return
+            self._value = self.annotation(value)
+            return
+        for type_arg in args:
+            with contextlib.suppress(TypeError):
+                self._value = type_arg(value)
 
 
 def tokenize_string(string: str) -> Generator[tokenize.TokenInfo, None, None]:
     return tokenize.generate_tokens(io.StringIO(string).readline)
 
 
-def help_text(filename: str, args: list[Param], docstring: str = "") -> None:
+def help_text(filename: str, params: list[Param], docstring: str = "") -> None:
     # XXX build list of arguments for 'usage'
     print(f"Usage: \n\t{filename} ...\n")
     if docstring:
         print(f"Description: \n{docstring}\n")
     print("Options:")
-    for arg in args:
+    for arg in params:
         if get_origin(arg.annotation) is Union:
             types = [a.__name__ for a in get_args(arg.annotation)]
             if "NoneType" in types:
@@ -138,7 +153,7 @@ def help_text(filename: str, args: list[Param], docstring: str = "") -> None:
                 arg_types = " ".join(types)
                 arg_types += " OPTIONAL"
         else:
-            arg_types = arg.annotation.__name__
+            arg_types = arg.help_name
         print(f" --{arg.help_name}\t\t({arg_types})\t{arg.description}")
 
 
@@ -149,38 +164,62 @@ def clean_args(argv: list[str]) -> tuple[ArgList, ArgDict]:
         double_hyphen = re.match(r"--([\w-]+)(?:=(.+))?", arg)
         if double_hyphen:
             value = double_hyphen.groups()[1]
-            # XXX Bug for non-boolean values. This
+            # XXX Bug for non-boolean values. Also ignores defaults for bool
             if value is None:
                 value = TrueIfBool
             # Translate hyphens to underscores
             kw_args[double_hyphen.groups()[0].replace("-", "_")] = value
         else:
             pos_args.append(arg)
-    print(pos_args, kw_args)
     return pos_args, kw_args
 
 
 def parse_args(
-    args: list[Param],
+    params: list[Param],
     docstring: str = "",
+    filename: str = sys.argv[0],
+    argv: list[str] = sys.argv[1:],
 ) -> ArgDict:
-    filename = sys.argv[0]
-    argv = sys.argv[1:]
-
     pos_args, kw_args = clean_args(argv)
     if "help" in kw_args or "h" in kw_args:
-        help_text(filename, args, docstring)
+        help_text(filename, params, docstring)
         exit()
 
-    for arg in args:
-        arg.process_args(pos_args, kw_args)
+    missing_params = []
+
+    for param in params:
+        # Positional arguments take precedence
+        if pos_args:
+            param.set_value(pos_args.pop(0))
+        elif param.name in kw_args:
+            param.set_value(kw_args[param.name])
+            continue
+        elif param.required:
+            missing_params.append(param)
+            continue
+
+    if pos_args:
+        print("Error, too many positional arguments!")
+        exit()
+
+    if missing_params:
+        print(
+            "Error, missing required "
+            f"argument{'s' if len(missing_params) > 1 else ''}:"
+        )
+        for param in missing_params:
+            help_line = f"\t--{param.help_name}\t({param.help_type})"
+            if param.description:
+                help_line += f" - {param.description}"
+            print(help_line)
+        exit()
 
     for k, _ in kw_args.items():
-        if k not in [a.name for a in args]:
+        if k not in [a.name for a in params]:
             print(f"Error: Unexpected argument '{k}'")
             exit()
 
-    return kw_args
+    return {param.name: param.value for param in params}
 
 
 def format_docstring(docstring: str) -> str:
@@ -199,19 +238,19 @@ def format_docstring(docstring: str) -> str:
 
 
 def wrap(func: Callable[..., Any]) -> None:
-    args = extract_code_args(code=func)
+    params = extract_code_params(code=func)
     docstring = func.__doc__ or ""
-    parsed_args = parse_args(
-        args=args,
+    kwargs = parse_args(
+        params=params,
         docstring=format_docstring(docstring),
     )
-    func(**parsed_args)
+    func(**kwargs)
 
 
-def extract_code_args(code: Callable[..., Any]) -> list[Param]:
+def extract_code_params(code: Callable[..., Any]) -> list[Param]:
     tokens = tokenize_string(inspect.getsource(code))
     signature = inspect.signature(code)
-    params = OrderedDict(
+    ordered_params = OrderedDict(
         (
             k,
             Param(
@@ -223,12 +262,12 @@ def extract_code_args(code: Callable[..., Any]) -> list[Param]:
         )
         for k, v in signature.parameters.items()
     )
-    hints = {k: v.annotation for k, v in params.items()}
+    hints = {k: v.annotation for k, v in ordered_params.items()}
     attrs = hints.copy()
     # We don't care about the return value of the entrypoint
     if "return" in attrs:
         attrs.pop("return")
-    args: list[Param] = []
+    params: list[Param] = []
 
     prepended_comment = ""
 
@@ -239,10 +278,10 @@ def extract_code_args(code: Callable[..., Any]) -> list[Param]:
         elif token.exact_type == tokenize.NAME:
             if token.string in attrs:
                 attrs.pop(token.string)
-                param = params[token.string]
+                param = ordered_params[token.string]
                 param.set_line(token.line)
                 if prepended_comment:
                     param._set_description(prepended_comment)
-                args.append(param)
+                params.append(param)
                 prepended_comment = ""
-    return args
+    return params

@@ -6,30 +6,30 @@ def test_emtpy():
     def code():
         pass
 
-    args = simplecli.extract_code_args(code)
-    assert args == []
+    params = simplecli.extract_code_params(code)
+    assert params == []
 
 
 def test_emtpy_with_comment():
     def code():  # wut
         pass
 
-    args = simplecli.extract_code_args(code)
-    assert args == []
+    params = simplecli.extract_code_params(code)
+    assert params == []
 
 
 def test_integer_with_default_oneline():
     def code(foo: int = 123):
         pass
 
-    args = simplecli.extract_code_args(code)
-    expected_arg = simplecli.Param(
+    params = simplecli.extract_code_params(code)
+    expected_param = simplecli.Param(
         name="foo",
         annotation=int,
         default=123,
     )
-    expected_arg.set_line("    def code(foo: int = 123):\n")
-    assert args == [expected_arg]
+    expected_param.set_line("    def code(foo: int = 123):\n")
+    assert params == [expected_param]
 
 
 def test_boolean_with_default():
@@ -38,8 +38,8 @@ def test_boolean_with_default():
     ):
         pass
 
-    args = simplecli.extract_code_args(code)
-    expected_arg = simplecli.Param(
+    params = simplecli.extract_code_params(code)
+    expected_param = simplecli.Param(
         name="foo",
         line="        foo: bool = True\n",
         annotation=bool,
@@ -47,7 +47,7 @@ def test_boolean_with_default():
         required=False,
         optional=False,
     )
-    assert args == [expected_arg]
+    assert params == [expected_param]
 
 
 def test_string_with_inline_comment():
@@ -56,16 +56,16 @@ def test_string_with_inline_comment():
     ):
         pass
 
-    args = simplecli.extract_code_args(code)
-    expected_arg = simplecli.Param(
+    params = simplecli.extract_code_params(code)
+    expected_param = simplecli.Param(
         name="bar",
         line="        bar: str  # input for bar\n",
         annotation=str,
         required=True,
         optional=False,
     )
-    assert args == [expected_arg]
-    assert args[0].description == "input for bar"
+    assert params == [expected_param]
+    assert params[0].description == "input for bar"
 
 
 def test_string_with_prepended_comment():
@@ -75,45 +75,45 @@ def test_string_with_prepended_comment():
     ):
         pass
 
-    args = simplecli.extract_code_args(code)
-    expected_arg = simplecli.Param(
+    params = simplecli.extract_code_params(code)
+    expected_param = simplecli.Param(
         name="bar",
         line="        # input for bar\n        bar: str\n",
         annotation=str,
         required=True,
     )
-    assert args == [expected_arg]
-    assert args[0].description == "input for bar"
+    assert params == [expected_param]
+    assert params[0].description == "input for bar"
 
 
 def test_int_with_oneline_comment():
     def code(foo_bar: int = 10):  # testfoo 123
         pass
 
-    args = simplecli.extract_code_args(code)
-    expected_arg = simplecli.Param(
+    params = simplecli.extract_code_params(code)
+    expected_param = simplecli.Param(
         name="foo_bar",
         line="    def code(foo_bar: int = 10):  # testfoo 123\n",
         annotation=int,
         default=10,
     )
-    assert args == [expected_arg]
-    assert args[0].description == "testfoo 123"
+    assert params == [expected_param]
+    assert params[0].description == "testfoo 123"
 
 
 def test_float_with_oneline_comment():
     def code(pi: float = 3.1415):  # It's Pi
         pass
 
-    args = simplecli.extract_code_args(code)
-    expected_arg = simplecli.Param(
+    params = simplecli.extract_code_params(code)
+    expected_param = simplecli.Param(
         name="pi",
         line="    def code(pi: float = 3.1415):  # It's Pi\n",
         annotation=float,
         default=3.1415,
     )
-    assert args == [expected_arg]
-    assert args[0].description == "It's Pi"
+    assert params == [expected_param]
+    assert params[0].description == "It's Pi"
 
 
 def test_str_optional_implied_none():
@@ -122,15 +122,15 @@ def test_str_optional_implied_none():
     ):
         pass
 
-    args = simplecli.extract_code_args(code)
-    expected_arg = simplecli.Param(
+    params = simplecli.extract_code_params(code)
+    expected_param = simplecli.Param(
         name="quux",
         line="        quux: typing.Optional[str]\n",
         annotation=typing.Optional[str],
         required=False,
         optional=True,
     )
-    assert args == [expected_arg]
+    assert params == [expected_param]
 
 
 def test_str_optional_implied_none_with_comment():
@@ -139,15 +139,15 @@ def test_str_optional_implied_none_with_comment():
     ):
         pass
 
-    args = simplecli.extract_code_args(code)
-    expected_arg = simplecli.Param(
+    params = simplecli.extract_code_params(code)
+    expected_param = simplecli.Param(
         name="quux",
         line="        quux: typing.Optional[str]  # Might be important\n",
         annotation=typing.Optional[str],
         required=False,
         optional=True,
     )
-    assert args == [expected_arg]
+    assert params == [expected_param]
 
 
 def test_complex_with_heredoc():
@@ -161,8 +161,8 @@ def test_complex_with_heredoc():
         """
         pass
 
-    args = simplecli.extract_code_args(code)
-    assert args == [
+    params = simplecli.extract_code_params(code)
+    assert params == [
         simplecli.Param(
             name="foo",
             line="        foo: int,\n",
@@ -186,9 +186,9 @@ def test_complex_with_heredoc():
             optional=False,
         ),
     ]
-    assert args[0].description == ""
-    assert args[1].description == ""
-    assert args[2].description == "Only change if necessary"
+    assert params[0].description == ""
+    assert params[1].description == ""
+    assert params[2].description == "Only change if necessary"
 
 
 def test_integer_with_variable_oneline():
@@ -197,11 +197,11 @@ def test_integer_with_variable_oneline():
     def code(foo: int = value):
         pass
 
-    args = simplecli.extract_code_args(code)
-    expected_arg = simplecli.Param(
+    params = simplecli.extract_code_params(code)
+    expected_param = simplecli.Param(
         name="foo",
         line="    def code(foo: int = value):\n",
         annotation=int,
         default=321,
     )
-    assert args == [expected_arg]
+    assert params == [expected_param]
