@@ -58,6 +58,7 @@ def test_bool_no_comment_no_comma():
         name="dry_run",
         line="   dry_run: bool = False",
         raw_datatype=bool,
+        default=False,
     )
     assert arg.datatypes == [bool]
     assert arg.default is False
@@ -74,6 +75,7 @@ def test_bool_no_comment():
         name="dry_run",
         line="   dry_run: bool = False,",
         raw_datatype=bool,
+        default=False,
     )
     assert arg.datatypes == [bool]
     assert arg.default is False
@@ -89,6 +91,7 @@ def test_bool_comment():
         name="dry_run",
         line="       dry_run: bool = False,  # Only show what would happen",
         raw_datatype=bool,
+        default=False,
     )
     assert arg.datatypes == [bool]
     assert arg.default is False

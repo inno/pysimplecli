@@ -6,17 +6,21 @@ import sys
 import tokenize
 from dataclasses import dataclass
 from collections.abc import Generator
+from types import MappingProxyType
 from typing import (
     Any,
+    Callable,
     Optional,
     Union,
     get_args,
+    get_origin,
     get_type_hints,
 )
 
 # 2023 - Clif Bratcher WIP
 
 
+ArgList = dict[str, Union[bool, str]]
 ValueType = Union[bool, float, int, str]
 
 
@@ -41,34 +45,8 @@ class Arg:
             if token.string == "Optional":
                 self.required = False
                 self.optional = True
-        if len(tokens) == 3:
-            self.set_default(datatype=tokens[1].string, value=tokens[2].string)
+        if self.default is not None:
             self.required = False
-        elif self.required is False and len(tokens) == 4:
-            self.set_default(datatype=tokens[1].string, value=tokens[2].string)
-        elif self.optional is False and len(tokens) == 5:
-            self.set_default(datatype=tokens[3].string, value=tokens[4].string)
-
-    # Value is always a string, but cast as needed
-    def set_default(self, datatype: str, value: str) -> None:
-        if datatype == "int":
-            self.default = int(value)
-        elif datatype == "float":
-            self.default = float(value)
-        elif datatype == "str":
-            wrapped = re.match(r"['\"](.*)['\"]", value)
-            if wrapped:
-                self.default = wrapped.groups()[0]
-            else:
-                self.default = value
-        elif datatype == "bool":
-            # XXX Needs handling for "no-"
-            self.default = value == "True"
-        elif datatype == "Optional":
-            if self.default == "None":
-                self.default = None
-        else:
-            print(f"XXXXXX {datatype}: {self.default}")
 
     @property
     def datatypes(self) -> list[type]:
@@ -104,6 +82,18 @@ def tokenize_string(string: str) -> Generator[tokenize.TokenInfo, None, None]:
     return tokenize.generate_tokens(io.StringIO(string).readline)
 
 
+def tokenize_code(
+    code: Callable[..., Any],
+) -> Generator[tokenize.TokenInfo, None, None]:
+    return tokenize_string(inspect.getsource(code))
+
+
+def code_params(
+    code: Callable[..., Any],
+) -> MappingProxyType[str, inspect.Parameter]:
+    return inspect.signature(code).parameters
+
+
 def help_text(filename: str, args: list[Arg], docstring: str = "") -> None:
     # XXX build list of arguments for 'usage'
     print(f"Usage: \n\t{filename} ...\n")
@@ -111,14 +101,15 @@ def help_text(filename: str, args: list[Arg], docstring: str = "") -> None:
         print(f"Description: \n{docstring}\n")
     print("Options:")
     for arg in args:
-        print(
-            f" --{arg.name}"
-            f"\t\t({arg.raw_datatype.__name__})"
-            f"\t{arg.description}",
-        )
-
-
-ArgList = dict[str, Union[bool, str]]
+        if get_origin(arg.raw_datatype) is Union:
+            types = [a.__name__ for a in get_args(arg.raw_datatype)]
+            if "NoneType" in types:
+                types.remove("NoneType")
+                arg_types = " ".join(types)
+                arg_types += " OPTIONAL"
+        else:
+            arg_types = arg.raw_datatype.__name__
+        print(f" --{arg.name}\t\t({arg_types})\t{arg.description}")
 
 
 def clean_passed_args(argv: list[str]) -> ArgList:
@@ -169,7 +160,10 @@ def process_arg(arg: Arg, passed_args: ArgList) -> None:
         exit()
 
 
-def parse_args(args: list[Arg], docstring: str = "") -> ArgList:
+def parse_args(
+    args: list[Arg],
+    docstring: str = "",
+) -> ArgList:
     filename = sys.argv[0]
     argv = sys.argv[1:]
 
@@ -227,20 +221,27 @@ def run(main_function: str = "main") -> None:
     if top_of_stack_file != caller_file:
         return
 
-    args = extract_args(
-        tokens=tokenize_string(inspect.getsource(f_locals[main_function])),
-        hints=get_type_hints(f_locals[main_function]),
-    )
+    args = extract_code_args(code=f_locals[main_function])
+    docstring = f_locals[main_function].__doc__ or ""
     clean_args = parse_args(
         args=args,
-        docstring=format_docstring(f_locals[main_function].__doc__),
+        docstring=format_docstring(docstring),
     )
     f_locals[main_function](**clean_args)
+
+
+def extract_code_args(code: Callable[..., Any]) -> list[Arg]:
+    return extract_args(
+        tokens=tokenize_code(code),
+        hints=get_type_hints(code),
+        params=inspect.signature(code).parameters,
+    )
 
 
 def extract_args(
     hints: dict[str, Any],
     tokens: Generator[tokenize.TokenInfo, None, None],
+    params: MappingProxyType[str, inspect.Parameter],
 ) -> list[Arg]:
     attrs = hints.copy()
     # We don't care about the return value of the entrypoint
@@ -250,20 +251,23 @@ def extract_args(
 
     prepended_comment = ""
 
-    for token in tokens:
-        # No need to continue processing if we've found everything
-        if not attrs:
-            return args
-        elif token.exact_type == tokenize.COMMENT:
+    # No need to continue processing if we've found everything
+    while attrs:
+        token = next(tokens)
+        if token.exact_type == tokenize.COMMENT:
             prepended_comment = token.line
         elif token.exact_type == tokenize.NAME:
             if token.string in attrs:
                 attr_type = attrs.pop(token.string)
+                default = params[token.string].default
+                if default == inspect._empty:
+                    default = None
                 args.append(
                     Arg(
                         name=token.string,
                         line=prepended_comment + token.line,
                         raw_datatype=attr_type,
+                        default=default,
                     ),
                 )
     return args
