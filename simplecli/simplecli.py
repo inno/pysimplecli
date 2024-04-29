@@ -31,13 +31,15 @@ _wrapped = False
 Empty = inspect._empty
 # Overloaded placeholder for a potential boolean
 DefaultIfBool = "Crazy going slowly am I, 6, 5, 4, 3, 2, 1, switch!"
-
 ValueType = Union[type[Empty], bool, float, int, str]
 ArgDict = dict[str, ValueType]
 ArgList = list[str]
 
 
 class Param(inspect.Parameter):
+    optional: bool
+    required: bool
+
     def __init__(self, *argv: Any, **kwargs: Any) -> None:
         if "kind" not in kwargs:
             kwargs["kind"] = inspect.Parameter.POSITIONAL_OR_KEYWORD
@@ -110,8 +112,16 @@ class Param(inspect.Parameter):
             return self.default
         return Empty
 
-    def _set_description(self, line: str) -> None:
+    def _set_description(self, line: str, force: bool = False) -> None:
+        if self.description and not force:
+            return
         self.description = re.sub(r"^#\s+", "", line.lstrip()).strip()
+
+    def parse_or_prepend(self, line: str, comment: str) -> bool:
+        line_set = self.parse_line(line)
+        if comment:
+            self._set_description(comment)
+        return line_set
 
     def parse_line(self, line: str) -> bool:
         self.description = ""
@@ -124,7 +134,7 @@ class Param(inspect.Parameter):
             if token.type not in (COMMENT, NAME, NUMBER, STRING):
                 continue
             if token.exact_type is COMMENT:
-                self._set_description(token.string)
+                self._set_description(token.string, force=True)
             if token.string == "Optional":
                 self.required = False
                 self.optional = True
@@ -177,22 +187,29 @@ def tokenize_string(string: str) -> Generator[TokenInfo, None, None]:
     return generate_tokens(io.StringIO(string).readline)
 
 
-def help_text(filename: str, params: list[Param], docstring: str = "") -> None:
-    # XXX build list of arguments for 'usage'
-    print(f"Usage: \n\t{filename} ...\n")
+def help_text(filename: str, params: list[Param], docstring: str = "") -> str:
+    help_msg = ["Usage: ", f"\t{filename} ..."]
     if docstring:
-        print(f"Description: \n{docstring}\n")
-    print("Options:")
-    for arg in params:
-        if get_origin(arg.annotation) is Union:
-            types = [a.__name__ for a in get_args(arg.annotation)]
+        help_msg += ["Description: ", f"{docstring}"]
+    help_msg.append("Options:")
+    for param in params:
+        if get_origin(param.annotation) is Union:
+            types = [a.__name__ for a in get_args(param.annotation)]
             if "NoneType" in types:
                 types.remove("NoneType")
                 arg_types = " ".join(types)
                 arg_types += " OPTIONAL"
+            else:
+                arg_types = param.help_type
+                arg_types += " OPTIONAL"
         else:
-            arg_types = arg.help_name
-        print(f" --{arg.help_name}\t\t({arg_types})\t{arg.description}")
+            arg_types = param.help_type
+        help_line = f" --{param.help_name}\t\t({arg_types})\t"
+        if param.default is not Empty:
+            help_line += f" [Default: {param.default}]"
+        help_line += f" {param.description}"
+        help_msg.append(help_line)
+    return "\n".join(help_msg)
 
 
 def clean_args(argv: list[str]) -> tuple[ArgList, ArgDict]:
@@ -212,37 +229,31 @@ def clean_args(argv: list[str]) -> tuple[ArgList, ArgDict]:
 
 
 def check_for_unexpected_args(params: list[Param], kw_args: ArgDict) -> None:
-    for k, _ in kw_args.items():
-        if k not in [a.name for a in params]:
-            print(f"Error: Unexpected argument '{k}'")
-            exit()
+    for key in kw_args:
+        if key not in [a.name for a in params]:
+            exit(f"Error: Unexpected argument '{key}'")
 
 
-def missing_params_msg(missing_params: list[Param]) -> None:
-    print(
-        "Error, missing required "
-        f"argument{'s' if len(missing_params) > 1 else ''}:"
-    )
+def missing_params_msg(missing_params: list[Param]) -> list[str]:
+    mp_text = [
+        (
+            "Error, missing required "
+            f"argument{'s' if len(missing_params) > 1 else ''}:"
+        )
+    ]
     for param in missing_params:
-        help_line = f"\t--{param.help_name}\t({param.help_type})"
+        mp_text.append(f"\t--{param.help_name}\t({param.help_type})")
         if param.description:
-            help_line += f" - {param.description}"
-        print(help_line)
+            mp_text[-1] += f" - {param.description}"
+    return mp_text
 
 
 def params_to_kwargs(
     params: list[Param],
-    docstring: str = "",
-    filename: str = sys.argv[0],
-    argv: list[str] = sys.argv[1:],
+    pos_args: ArgList,
+    kw_args: ArgDict,
 ) -> ArgDict:
-    pos_args, kw_args = clean_args(argv)
-    if "help" in kw_args or "h" in kw_args:
-        help_text(filename, params, docstring)
-        exit()
-
     missing_params = []
-
     try:
         for param in params:
             # Positional arguments take precedence
@@ -255,16 +266,13 @@ def params_to_kwargs(
                 missing_params.append(param)
                 continue
     except ValueError as e:
-        print(e.args[0])
-        exit()
+        exit(e.args[0])
 
     if pos_args:
-        print("Error, too many positional arguments!")
-        exit()
+        raise TypeError("Too many positional arguments!")
 
     if missing_params:
-        missing_params_msg(missing_params)
-        exit()
+        raise TypeError(*missing_params_msg(missing_params))
 
     check_for_unexpected_args(params, kw_args)
     return {param.name: param.value for param in params}
@@ -288,13 +296,23 @@ def format_docstring(docstring: str) -> str:
 def wrap(func: Callable[..., Any]) -> None:
     global _wrapped
     if _wrapped:
-        print("Error, sorry only ONE `@wrap` decorator allowed!")
-        exit()
+        exit("Error, sorry only ONE `@wrap` decorator allowed!")
     _wrapped = True
-    kwargs = params_to_kwargs(
-        params=extract_code_params(code=func),
-        docstring=format_docstring(func.__doc__ or ""),
-    )
+    filename = sys.argv[0]
+    argv = sys.argv[1:]
+    params = extract_code_params(code=func)
+    pos_args, kw_args = clean_args(argv)
+    if "help" in kw_args or "h" in kw_args:
+        exit(help_text(filename, params, format_docstring(func.__doc__ or "")))
+
+    try:
+        kwargs = params_to_kwargs(
+            params=params,
+            pos_args=pos_args,
+            kw_args=kw_args,
+        )
+    except TypeError as e:
+        exit("\n".join(e.args))
     func(**kwargs)
 
 
@@ -326,36 +344,36 @@ def extract_code_params(code: Callable[..., Any]) -> list[Param]:
     tokens = tokenize_string(inspect.getsource(code))
     ordered_params = code_to_ordered_params(code)
     hints = hints_from_ordered_params(ordered_params)
-    params: list[Param] = []
-    prepended_comment = ""
+    comment = ""
     param = None
+    params: list[Param] = []
 
     while hints:
         token = next(tokens)
         if token.exact_type is COMMENT:
-            prepended_comment = token.string
+            comment = token.string
+            if params and param is None:
+                params[-1].parse_or_prepend(token.line, comment)
+                comment = ""
             continue
         # tokenize.NL -
         # when a logical line of code is continued over multiple lines
         if token.exact_type is NL:
             if not param:
                 continue
-            param.parse_line(prepended_comment)
+            param.parse_or_prepend(token.line, comment)
         elif token.exact_type is NAME:
             if token.string not in hints:
                 continue
             hints.pop(token.string)
             param = ordered_params[token.string]
-            line_set = param.parse_line(token.line)
-            if prepended_comment:
-                param._set_description(prepended_comment)
-            if not line_set:
+            if not param.parse_or_prepend(token.line, comment):
                 # Catch in the event a tokenize.NL is coming soon
                 continue
         else:
             continue
+        comment = ""
         params.append(param)
-        prepended_comment = ""
         param = None
 
     return params

@@ -1,3 +1,6 @@
+import pytest
+import re
+import sys
 import typing
 from simplecli import simplecli
 
@@ -269,10 +272,9 @@ def test_multiline_comment_offset():
     ]
 
 
-def test_multiline_comment_offset_multiple():
+def test_multiline_comment_offset_multiple_inline():
     def code(foo: int,  # stuff
-             # things
-             bar: int):
+             bar: int):  # things
         pass
 
     params = simplecli.extract_code_params(code)
@@ -290,9 +292,9 @@ def test_multiline_comment_offset_multiple():
     ]
 
 
-def test_multiline_comment_offset_multiple_inline():
+def test_multiline_comment_offset_multiple_inline_extend():
     def code(foo: int,  # stuff
-             bar: int   # more stuff
+             bar: int,  # more stuff
              ):
         pass
 
@@ -371,3 +373,146 @@ def test_boolean_default_false_defaultifbool():
             value=False,
         ),
      ]
+
+
+def test_two_args_two_comments():
+    def code(
+        a: int,  # this is A
+        b: int,  # this is B
+    ):
+        pass
+
+    params = simplecli.extract_code_params(code)
+    assert params == [
+        simplecli.Param(
+            name="a",
+            annotation=int,
+            description="this is A",
+        ),
+        simplecli.Param(
+            name="b",
+            annotation=int,
+            description="this is B",
+        ),
+     ]
+
+
+def test_two_args_top_comment():
+    def code(
+        a: int,  # this is A
+        b: int,
+    ):
+        pass
+
+    params = simplecli.extract_code_params(code)
+    assert params == [
+        simplecli.Param(
+            name="a",
+            annotation=int,
+            description="this is A",
+        ),
+        simplecli.Param(
+            name="b",
+            annotation=int,
+        ),
+     ]
+
+
+def test_two_args_bottom_comment():
+    def code(
+        a: int,
+        b: int,  # this is B
+    ):
+        pass
+
+    params = simplecli.extract_code_params(code)
+    assert params == [
+        simplecli.Param(
+            name="a",
+            annotation=int,
+        ),
+        simplecli.Param(
+            name="b",
+            annotation=int,
+            description="this is B",
+        ),
+     ]
+
+
+def test_wrap_simple(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "123"])
+    monkeypatch.setattr(simplecli, "_wrapped", False)
+
+    @simplecli.wrap
+    def code(a: int):
+        assert a == 123
+
+
+def test_wrap_dupe(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "123"])
+    monkeypatch.setattr(simplecli, "_wrapped", False)
+
+    with pytest.raises(SystemExit, match="only ONE"):
+        @simplecli.wrap
+        def code1(a: int):
+            pass
+
+        @simplecli.wrap
+        def code2(a: int):
+            pass
+
+
+def test_wrap_help_simple(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "--help"])
+
+    with pytest.raises(SystemExit) as e:
+        @simplecli.wrap
+        def code1(this_var: int):  # stuff and things
+            pass
+
+    help_msg = e.value.args[0]
+    assert re.search(r"--this-var", help_msg)
+    assert re.search(r"\(int\)", help_msg)
+    assert re.search(r"stuff and things", help_msg)
+
+
+def test_wrap_help_complex(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "--help"])
+    monkeypatch.setattr(simplecli, "_wrapped", False)
+
+    with pytest.raises(SystemExit) as e:
+        @simplecli.wrap
+        def code(
+            that_var: typing.Union[str, int],  # that is the var
+            not_this_var: typing.Optional[str],
+            count: int = 54,  # number of things
+        ):
+            pass
+
+    help_msg = e.value.args[0]
+    assert re.search(r"--that-var", help_msg)
+    assert re.search(r"\[str, int\]", help_msg)
+    assert re.search(r"that is the var", help_msg)
+    assert re.search(r"--count", help_msg)
+    assert re.search(r"Default: 54", help_msg)
+    assert re.search(r"OPTIONAL", help_msg)
+
+
+def test_wrap_simple_type_error(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "123", "foo"])
+    monkeypatch.setattr(simplecli, "_wrapped", False)
+
+    with pytest.raises(SystemExit, match="Too many positional"):
+        @simplecli.wrap
+        def code(a: int):
+            pass
+
+
+def test_wrap_simple_value_error(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "foo"])
+    monkeypatch.setattr(simplecli, "_wrapped", False)
+
+    with pytest.raises(SystemExit, match="must be of type int"):
+        @simplecli.wrap
+        def code(a: int):
+            pass
