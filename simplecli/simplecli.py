@@ -17,6 +17,7 @@ from typing import (
     get_type_hints,
 )
 
+
 # 2023 - Clif Bratcher WIP
 
 
@@ -214,36 +215,14 @@ def format_docstring(docstring: str) -> str:
     )
 
 
-def run(main_function: str = "main") -> None:
-    current_frame = inspect.currentframe()
-    if not current_frame:
-        print("10001: This shouldn't be possible...")
-        exit()
-    f_back = current_frame.f_back
-    if not f_back:
-        print("10002: This shouldn't be possible...")
-        exit()
-    f_locals = f_back.f_locals
-    if main_function not in f_locals:
-        print(f"Sorry, I need the '{main_function}' function to build on!")
-        exit()
-    # Bail if the script is imported instead of called directly
-    top_of_stack_file = inspect.stack()[-1].filename
-    caller_file = inspect.getfile(f_back)
-    # Called as decorator
-    if f_back.f_back:
-        caller_file = inspect.getfile(f_back.f_back)
-    # File not called directly, do not treat as executed
-    if top_of_stack_file != caller_file:
-        return
-
-    args = extract_code_args(code=f_locals[main_function])
-    docstring = f_locals[main_function].__doc__ or ""
+def wrap(func: Callable[..., Any]) -> None:
+    args = extract_code_args(code=func)
+    docstring = func.__doc__ or ""
     clean_args = parse_args(
         args=args,
         docstring=format_docstring(docstring),
     )
-    f_locals[main_function](**clean_args)
+    func(**clean_args)
 
 
 def extract_code_args(code: Callable[..., Any]) -> list[Arg]:

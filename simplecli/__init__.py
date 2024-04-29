@@ -1,11 +1,5 @@
-from simplecli.simplecli import run
-from collections.abc import Callable
-from typing import TypeVar
-from typing_extensions import ParamSpec
+from simplecli.simplecli import wrap
 
-P = ParamSpec("P")
-R = TypeVar("R")
-
-
-def wrap(func: Callable[P, R]) -> None:
-    run("func")
+__all__ = [
+    "wrap",
+]
