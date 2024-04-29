@@ -210,7 +210,7 @@ def test_complex_with_heredoc():
             "bar": str,
         },
     )
-    
+
     assert args == [
         simplecli.Arg(
             name="foo",

@@ -225,7 +225,6 @@ def run(main_function: str = "main") -> None:
     if top_of_stack_file != caller_file:
         return
 
-
     args = extract_args(
         tokens=tokenize_string(inspect.getsource(f_locals[main_function])),
         hints=get_type_hints(f_locals[main_function]),
