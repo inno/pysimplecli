@@ -20,6 +20,9 @@ from typing import (
 # 2023 - Clif Bratcher WIP
 
 
+# Overloaded placeholder for a potential boolean
+TrueIfBool = "Crazy going slowly am I, 6, 5, 4, 3, 2, 1, switch!"
+
 ArgList = dict[str, Union[bool, str]]
 ValueType = Union[bool, float, int, str]
 
@@ -57,6 +60,10 @@ class Arg:
         elif isinstance(self.raw_datatype, list):
             return self.raw_datatype
         return [self.raw_datatype]
+
+    @property
+    def help_name(self) -> str:
+        return self.name.replace("_", "-")
 
     @property
     def description(self) -> str:
@@ -109,7 +116,7 @@ def help_text(filename: str, args: list[Arg], docstring: str = "") -> None:
                 arg_types += " OPTIONAL"
         else:
             arg_types = arg.raw_datatype.__name__
-        print(f" --{arg.name}\t\t({arg_types})\t{arg.description}")
+        print(f" --{arg.help_name}\t\t({arg_types})\t{arg.description}")
 
 
 def clean_passed_args(argv: list[str]) -> ArgList:
@@ -117,17 +124,19 @@ def clean_passed_args(argv: list[str]) -> ArgList:
     in_single = False  # Maintain state as single is per-record
     previous_single = ""
     for passed_arg in argv:
-        double_hyphen = re.match(r"--(\w+)(?:=(.+))?", passed_arg)
-        single_hyphen = re.match(r"-(\w+)", passed_arg)
+        double_hyphen = re.match(r"--([\w-]+)(?:=(.+))?", passed_arg)
+        single_hyphen = re.match(r"-([\w-]+)", passed_arg)
         if double_hyphen:
             in_single = False
             value = double_hyphen.groups()[1]
+            # XXX Bug for non-boolean values. This
             if value is None:
-                value = True
-            passed_args[double_hyphen.groups()[0]] = value
+                value = TrueIfBool
+            # Translate hyphens to underscores
+            passed_args[double_hyphen.groups()[0].replace("-", "_")] = value
         elif single_hyphen:
             in_single = True
-            previous_single = single_hyphen.groups()[0]
+            previous_single = single_hyphen.groups()[0].replace("-", "_")
             # Assume single is boolean (may bite us if default is `False`)
             passed_args[previous_single] = True
         elif in_single:
@@ -136,19 +145,26 @@ def clean_passed_args(argv: list[str]) -> ArgList:
         else:
             print(f"wut: '{passed_arg}'")
         # XXX positional based on required args
-
     return passed_args
 
 
 def process_arg(arg: Arg, passed_args: ArgList) -> None:
     if arg.name in passed_args:
         if arg.validate(passed_args[arg.name]) is False:
-            print(f"Error: argument '{arg.name}' has an invalid value")
+            print(f"Error: argument '{arg.help_name}' has an invalid value")
             # XXX Display the expected info?
             exit()
         # Handle datatypes
         type_args = get_args(arg.raw_datatype)
         if not type_args:
+            if passed_args[arg.name] is TrueIfBool:
+                if arg.raw_datatype is not bool:
+                    print(
+                        f"Error: argument '{arg.help_name}' requires a value"
+                    )
+                    exit()
+                else:
+                    passed_args[arg.name] = True
             passed_args[arg.name] = arg.raw_datatype(passed_args[arg.name])
             return
         for type_arg in type_args:
@@ -156,7 +172,7 @@ def process_arg(arg: Arg, passed_args: ArgList) -> None:
                 passed_args[arg.name] = type_arg(passed_args[arg.name])
         return
     if arg.required is True:
-        print(f"Error: argument '{arg.name}' is required!")
+        print(f"Error: argument '{arg.help_name}' is required!")
         exit()
 
 
