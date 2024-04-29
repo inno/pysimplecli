@@ -18,13 +18,14 @@ from typing import (
 # 2023 - Clif Bratcher WIP
 
 
+_wrapped = False
+Empty = inspect._empty
 # Overloaded placeholder for a potential boolean
 TrueIfBool = "Crazy going slowly am I, 6, 5, 4, 3, 2, 1, switch!"
 
 ValueType = Union[bool, float, int, str]
 ArgDict = dict[str, ValueType]
 ArgList = list[str]
-Empty = inspect._empty
 
 
 class Param(inspect.Parameter):
@@ -91,7 +92,7 @@ class Param(inspect.Parameter):
         if self.default != Empty:
             return self.default
         print(
-            "Error, empty value and default for {self.help_name}.. "
+            f"Error, empty value and default for {self.help_name}.. "
             "I'm not sure what to do!"
         )
         exit()
@@ -268,6 +269,11 @@ def format_docstring(docstring: str) -> str:
 
 
 def wrap(func: Callable[..., Any]) -> None:
+    global _wrapped
+    if _wrapped:
+        print("Error, sorry only ONE `@wrap` decorator allowed!")
+        exit()
+    _wrapped = True
     params = extract_code_params(code=func)
     docstring = func.__doc__ or ""
     kwargs = parse_args(
