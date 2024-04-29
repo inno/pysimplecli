@@ -57,7 +57,7 @@ class Param(inspect.Parameter):
         self.description = param_description
         self.optional = param_optional
         if not self.description:
-            self.set_line(param_line)
+            self.parse_line(param_line)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Param):
@@ -104,7 +104,7 @@ class Param(inspect.Parameter):
     def _set_description(self, line: str) -> None:
         self.description = re.sub(r"^#\s+", "", line.lstrip()).strip()
 
-    def set_line(self, line: str) -> bool:
+    def parse_line(self, line: str) -> bool:
         self.description = ""
         try:
             tokens = [
@@ -338,13 +338,13 @@ def extract_code_params(code: Callable[..., Any]) -> list[Param]:
         if token.exact_type is NL:
             if not param:
                 continue
-            param.set_line(prepended_comment)
+            param.parse_line(prepended_comment)
         elif token.exact_type is NAME:
             if token.string not in hints:
                 continue
             hints.pop(token.string)
             param = ordered_params[token.string]
-            line_set = param.set_line(token.line)
+            line_set = param.parse_line(token.line)
             if prepended_comment:
                 param._set_description(prepended_comment)
             if not line_set:
