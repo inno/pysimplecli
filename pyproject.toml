@@ -74,6 +74,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 select = [
     "ANN",  # flake8-annotations
     "B",  # flake8-bugbear
+    "C90",  # mccabe (code complexity)
     "E",  # pycodestyle
     "F",  # Pyflakes
     "RET",  # flake8-return
@@ -100,6 +101,9 @@ ignore = [
 
 [tool.ruff.lint.isort]
 no-sections = true
+
+[tool.ruff.lint.mccabe]
+max-complexity = 9
 
 [tool.ruff.lint.flake8-annotations]
 allow-star-arg-any = true
