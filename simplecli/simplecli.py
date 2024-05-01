@@ -27,8 +27,11 @@ from typing import (
 # 2023 - Clif Bratcher WIP
 
 
+class Empty:
+    pass
+
+
 _wrapped = False
-Empty = inspect._empty
 # Overloaded placeholder for a potential boolean
 DefaultIfBool = "Crazy going slowly am I, 6, 5, 4, 3, 2, 1, switch!"
 ValueType = Union[type[Empty], bool, float, int, str]
@@ -37,8 +40,9 @@ ArgList = list[str]
 
 
 class Param(inspect.Parameter):
-    optional: bool
-    required: bool
+    internal_only: bool  # Do not pass to wrapped function
+    optional: bool  # Value can be `None`, mirrors `Optional` type
+    required: bool  # Exit if a value is not present
 
     def __init__(self, *argv: Any, **kwargs: Any) -> None:
         if "kind" not in kwargs:
@@ -50,21 +54,29 @@ class Param(inspect.Parameter):
                 )
         if kwargs["annotation"] not in get_args(ValueType):
             if get_origin(kwargs["annotation"]) is not Union:
-                raise ValueError(
-                    "annotation type "
-                    f"'{type(kwargs['annotation']).__name__}' "
-                    "is not currently supported!"
-                )
+                if kwargs["annotation"] is not Empty:
+                    raise ValueError(
+                        "annotation type "
+                        f"'{type(kwargs['annotation']).__name__}' "
+                        "is not currently supported!"
+                    )
+        kwargs["annotation"] = kwargs.pop("annotation", Empty)
+        kwargs["default"] = kwargs.pop("default", Empty)
         param_description = str(kwargs.pop("description", ""))
         param_line = str(kwargs.pop("line", ""))
         param_value = kwargs.pop("value", Empty)
-        param_required = bool(kwargs.pop("required", True))
+        param_internal_only = bool(kwargs.pop("internal_only", False))
         param_optional = bool(kwargs.pop("optional", False))
+        param_required = bool(kwargs.pop("required", True))
         super().__init__(*argv, **kwargs)
         self._value = param_value
-        self.required = param_required
         self.description = param_description
+        self.internal_only = param_internal_only
         self.optional = param_optional
+        self.required = param_required
+        # Overrides required as these values are generally unused
+        if self.internal_only:
+            self.required = False
         if not self.description:
             self.parse_line(param_line)
 
@@ -106,9 +118,9 @@ class Param(inspect.Parameter):
 
     @property
     def value(self) -> ValueType:
-        if self._value != Empty:
+        if self._value is not Empty:
             return self._value
-        if self.default != Empty:
+        if self.default is not Empty:
             return self.default
         return Empty
 
@@ -195,7 +207,11 @@ def tokenize_string(string: str) -> Generator[TokenInfo, None, None]:
     return generate_tokens(io.StringIO(string).readline)
 
 
-def help_text(filename: str, params: list[Param], docstring: str = "") -> str:
+def help_text(
+    filename: str,
+    params: list[Param],
+    docstring: str = "",
+) -> str:
     help_msg = ["Usage: ", f"\t{filename} ..."]
     if docstring:
         help_msg += ["Description: ", f"{docstring}"]
@@ -212,7 +228,9 @@ def help_text(filename: str, params: list[Param], docstring: str = "") -> str:
                 arg_types += " OPTIONAL"
         else:
             arg_types = param.help_type
-        help_line = f" --{param.help_name}\t\t({arg_types})\t"
+        help_line = f" --{param.help_name}"
+        if arg_types != "_empty":
+            help_line += f"\t\t({arg_types})\t"
         if param.default is not Empty:
             help_line += f" [Default: {param.default}]"
         help_line += f" {param.description}"
@@ -310,8 +328,21 @@ def wrap(func: Callable[..., Any]) -> None:
     argv = sys.argv[1:]
     params = extract_code_params(code=func)
     pos_args, kw_args = clean_args(argv)
-    if "help" in kw_args or "h" in kw_args:
+    version = func.__globals__.get("__version__", "")
+    if version:
+        params.append(
+            Param(name="version", annotation=Empty, internal_only=True)
+        )
+    params.append(Param(name="help", annotation=Empty, internal_only=True))
+    if "help" in kw_args:
         exit(help_text(filename, params, format_docstring(func.__doc__ or "")))
+
+    if "version" in kw_args:
+        if version != "":
+            exit(f"Version: {version}")
+
+    # Strip internal-only
+    params = [param for param in params if not param.internal_only]
 
     try:
         kwargs = params_to_kwargs(
@@ -326,13 +357,14 @@ def wrap(func: Callable[..., Any]) -> None:
 
 def code_to_ordered_params(code: Callable[..., Any]) -> OrderedDict:
     signature = inspect.signature(code)
+    empty = inspect._empty
     return OrderedDict(
         (
             k,
             Param(
                 name=v.name,
-                default=v.default,
-                annotation=v.annotation,
+                default=Empty if v.default is empty else v.default,
+                annotation=Empty if v.annotation is empty else v.annotation,
                 kind=v.kind,
             ),
         )
