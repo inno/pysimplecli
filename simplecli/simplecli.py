@@ -45,13 +45,17 @@ class Param(inspect.Parameter):
     required: bool  # Exit if a value is not present
 
     def __init__(self, *argv: Any, **kwargs: Any) -> None:
-        if "kind" not in kwargs:
-            kwargs["kind"] = inspect.Parameter.POSITIONAL_OR_KEYWORD
-        for required_arg in ("annotation", "name"):
-            if required_arg not in kwargs:
-                raise TypeError(
-                    f"needs keyword-only argument '{required_arg}'"
-                )
+        kwargs["annotation"] = kwargs.pop("annotation", Empty)
+        kwargs["default"] = kwargs.pop("default", Empty)
+        kwargs["kind"] = kwargs.pop(
+            "kind", inspect.Parameter.POSITIONAL_OR_KEYWORD
+        )
+        # Allow 'name' as a positional parameter
+        if "name" not in kwargs:
+            if len(argv) == 0:
+                raise TypeError("needs 'name' argument")
+            kwargs["name"] = argv[0]
+            argv = ()
         if kwargs["annotation"] not in get_args(ValueType):
             if get_origin(kwargs["annotation"]) is not Union:
                 if kwargs["annotation"] is not Empty:
@@ -60,8 +64,6 @@ class Param(inspect.Parameter):
                         f"'{type(kwargs['annotation']).__name__}' "
                         "is not currently supported!"
                     )
-        kwargs["annotation"] = kwargs.pop("annotation", Empty)
-        kwargs["default"] = kwargs.pop("default", Empty)
         param_description = str(kwargs.pop("description", ""))
         param_line = str(kwargs.pop("line", ""))
         param_value = kwargs.pop("value", Empty)
@@ -330,10 +332,8 @@ def wrap(func: Callable[..., Any]) -> None:
     pos_args, kw_args = clean_args(argv)
     version = func.__globals__.get("__version__", "")
     if version:
-        params.append(
-            Param(name="version", annotation=Empty, internal_only=True)
-        )
-    params.append(Param(name="help", annotation=Empty, internal_only=True))
+        params.append(Param("version", internal_only=True))
+    params.append(Param("help", internal_only=True))
     if "help" in kw_args:
         exit(help_text(filename, params, format_docstring(func.__doc__ or "")))
 
@@ -414,6 +414,7 @@ def extract_code_params(code: Callable[..., Any]) -> list[Param]:
         comment = ""
         params.append(param)
         param = None
+    # Necessary for < py3.12
     if param:
         params.append(param)
     return params

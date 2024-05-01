@@ -5,12 +5,13 @@ from typing import Union
 
 
 def test_required_arguments():
-    with pytest.raises(TypeError, match="annotation"):
-        Param()
     with pytest.raises(TypeError, match="name"):
-        Param(annotation=str)
-    p = Param(name="testparam", annotation=str)
-    assert isinstance(p, Param)
+        Param()
+    p1 = Param(name="testparam")
+    assert isinstance(p1, Param)
+    p2 = Param("testparam")
+    assert isinstance(p2, Param)
+    assert p1 == p2
 
 
 def test_equality():
