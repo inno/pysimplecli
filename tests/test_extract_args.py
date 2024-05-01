@@ -518,9 +518,25 @@ def test_wrap_simple_value_error(monkeypatch):
             pass
 
 
-def test_wrap_version(monkeypatch):
+def test_wrap_version_absent(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["filename", "--version"])
     monkeypatch.setattr(simplecli, "_wrapped", False)
+
+    with pytest.raises(SystemExit) as e:
+        @simplecli.wrap
+        def code2(this_var: int):  # stuff and things
+            pass
+
+    help_msg = e.value.args[0]
+    assert not re.search(r"Description:", help_msg)
+    assert not re.search(r"Version: 1.2.3", help_msg)
+    assert re.search(r"--this-var", help_msg)
+    assert re.search(r"\(int\)", help_msg)
+    assert re.search(r"stuff and things", help_msg)
+
+
+def test_wrap_version_exists(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "--version"])
     monkeypatch.setattr(simplecli, "_wrapped", False)
 
     with pytest.raises(SystemExit) as e:
@@ -528,9 +544,30 @@ def test_wrap_version(monkeypatch):
             pass
         code1.__globals__["__version__"] = "1.2.3"
         simplecli.wrap(code1)
+        code1.__globals__.pop("__version__")
 
     help_msg = e.value.args[0]
     assert re.search(r"Version: 1.2.3", help_msg)
+    assert not re.search(r"Description:", help_msg)
     assert not re.search(r"--this-var", help_msg)
     assert not re.search(r"\(int\)", help_msg)
     assert not re.search(r"stuff and things", help_msg)
+
+
+def test_docstring(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "--help"])
+    monkeypatch.setattr(simplecli, "_wrapped", False)
+
+    with pytest.raises(SystemExit) as e:
+        @simplecli.wrap
+        def code2(this_var: int):  # stuff and things
+            """
+            this is a description
+            """
+
+    help_msg = e.value.args[0]
+    assert re.search(r"Description:", help_msg)
+    assert re.search(r"this is a description", help_msg)
+    assert re.search(r"--this-var", help_msg)
+    assert re.search(r"\(int\)", help_msg)
+    assert re.search(r"stuff and things", help_msg)

@@ -137,6 +137,7 @@ class Param(inspect.Parameter):
         comment: str,
         overwrite: bool = True,
     ) -> bool:
+        # Necessary for < py3.12
         if not overwrite and self.description:
             return False
 
@@ -216,7 +217,7 @@ def help_text(
 ) -> str:
     help_msg = ["Usage: ", f"\t{filename} ..."]
     if docstring:
-        help_msg += ["Description: ", f"{docstring}"]
+        help_msg += ["Description: ", f"\t{docstring.lstrip()}"]
     help_msg.append("Options:")
     for param in params:
         if get_origin(param.annotation) is Union:
@@ -343,15 +344,11 @@ def wrap(func: Callable[..., Any]) -> None:
 
     # Strip internal-only
     params = [param for param in params if not param.internal_only]
-
     try:
-        kwargs = params_to_kwargs(
-            params=params,
-            pos_args=pos_args,
-            kw_args=kw_args,
-        )
+        kwargs = params_to_kwargs(params, pos_args, kw_args)
     except TypeError as e:
         exit("\n".join(e.args))
+
     func(**kwargs)
 
 
