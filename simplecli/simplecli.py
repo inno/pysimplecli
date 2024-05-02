@@ -232,7 +232,7 @@ def help_text(
         else:
             arg_types = param.help_type
         help_line = f" --{param.help_name}"
-        if arg_types != "_empty":
+        if param.annotation is not Empty:
             help_line += f"\t\t({arg_types})\t"
         if param.default is not Empty:
             help_line += f" [Default: {param.default}]"
