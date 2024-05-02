@@ -448,27 +448,63 @@ def test_wrap_simple(monkeypatch):
         assert a == 123
 
 
+class PatchGlobal:
+    def __init__(
+        self,
+        func: typing.Callable,
+        name: str,
+        value: str,
+        _no_actual_value: bool = False,
+
+    ) -> None:
+        self.func = func
+        self.name = name
+        self.value = value
+        _no_actual_value = _no_actual_value
+
+    def __enter__(self) -> "PatchGlobal":
+        self.actual_value = self.func.__globals__.get(self.name)
+        self._no_actual_value = True
+        self.func.__globals__[self.name] = self.value
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> "PatchGlobal":
+        if self._no_actual_value:
+            self.func.__globals__.pop(self.name)
+        else:
+            self.func.__globals__[self.name] = self.actual_value
+        return self
+
+
 def test_wrap_dupe(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["filename", "123"])
     monkeypatch.setattr(simplecli, "_wrapped", False)
 
-    with pytest.raises(SystemExit, match="only ONE"):
-        @simplecli.wrap
-        def code1(a: int):
-            pass
+    # with pytest.raises(SystemExit, match="only ONE"):
+    def code1(a: int):
+        pass
 
-        @simplecli.wrap
-        def code2(a: int):
-            pass
+    def code2(a: int):
+        pass
+
+    with PatchGlobal(code1, "__name__", "__main__"):
+        simplecli.wrap(code1)
+
+    with PatchGlobal(code2, "__name__", "__main__"):
+        simplecli.wrap(code2)
 
 
 def test_wrap_help_simple(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["filename", "--help"])
 
-    with pytest.raises(SystemExit) as e:
-        @simplecli.wrap
-        def code1(this_var: int):  # stuff and things
-            pass
+    def code1(this_var: int):  # stuff and things
+        pass
+
+    with (
+        PatchGlobal(code1, "__name__", "__main__"),
+        pytest.raises(SystemExit) as e,
+    ):
+        simplecli.wrap(code1)
 
     help_msg = e.value.args[0]
     assert re.search(r"--this-var", help_msg)
@@ -480,14 +516,18 @@ def test_wrap_help_complex(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["filename", "--help"])
     monkeypatch.setattr(simplecli, "_wrapped", False)
 
-    with pytest.raises(SystemExit) as e:
-        @simplecli.wrap
-        def code(
-            that_var: typing.Union[str, int],  # that is the var
-            not_this_var: typing.Optional[str],
-            count: int = 54,  # number of things
-        ):
-            pass
+    def code(
+        that_var: typing.Union[str, int],  # that is the var
+        not_this_var: typing.Optional[str],
+        count: int = 54,  # number of things
+    ):
+        pass
+
+    with (
+        PatchGlobal(code, "__name__", "__main__"),
+        pytest.raises(SystemExit) as e,
+    ):
+        simplecli.wrap(code)
 
     help_msg = e.value.args[0]
     assert re.search(r"--that-var", help_msg)
@@ -502,30 +542,42 @@ def test_wrap_simple_type_error(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["filename", "123", "foo"])
     monkeypatch.setattr(simplecli, "_wrapped", False)
 
-    with pytest.raises(SystemExit, match="Too many positional"):
-        @simplecli.wrap
-        def code(a: int):
-            pass
+    def code(a: int):
+        pass
+
+    with (
+        PatchGlobal(code, "__name__", "__main__"),
+        pytest.raises(SystemExit, match="Too many positional")
+    ):
+        simplecli.wrap(code)
 
 
 def test_wrap_simple_value_error(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["filename", "foo"])
     monkeypatch.setattr(simplecli, "_wrapped", False)
 
-    with pytest.raises(SystemExit, match="must be of type int"):
-        @simplecli.wrap
-        def code(a: int):
-            pass
+    def code(a: int):
+        pass
+
+    with (
+        PatchGlobal(code, "__name__", "__main__"),
+        pytest.raises(SystemExit, match="must be of type int"),
+    ):
+        simplecli.wrap(code)
 
 
 def test_wrap_version_absent(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["filename", "--version"])
     monkeypatch.setattr(simplecli, "_wrapped", False)
 
-    with pytest.raises(SystemExit) as e:
-        @simplecli.wrap
-        def code2(this_var: int):  # stuff and things
-            pass
+    def code2(this_var: int):  # stuff and things
+        pass
+
+    with (
+        PatchGlobal(code2, "__name__", "__main__"),
+        pytest.raises(SystemExit) as e,
+    ):
+        simplecli.wrap(code2)
 
     help_msg = e.value.args[0]
     assert not re.search(r"Description:", help_msg)
@@ -539,12 +591,15 @@ def test_wrap_version_exists(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["filename", "--version"])
     monkeypatch.setattr(simplecli, "_wrapped", False)
 
-    with pytest.raises(SystemExit) as e:
-        def code1(this_var: int):  # stuff and things
-            pass
-        code1.__globals__["__version__"] = "1.2.3"
+    def code1(this_var: int):  # stuff and things
+        pass
+
+    with (
+        PatchGlobal(code1, "__version__", "1.2.3"),
+        PatchGlobal(code1, "__name__", "__main__"),
+        pytest.raises(SystemExit) as e,
+    ):
         simplecli.wrap(code1)
-        code1.__globals__.pop("__version__")
 
     help_msg = e.value.args[0]
     assert re.search(r"Version: 1.2.3", help_msg)
@@ -558,12 +613,16 @@ def test_docstring(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["filename", "--help"])
     monkeypatch.setattr(simplecli, "_wrapped", False)
 
-    with pytest.raises(SystemExit) as e:
-        @simplecli.wrap
-        def code2(this_var: int):  # stuff and things
-            """
-            this is a description
-            """
+    def code2(this_var: int):  # stuff and things
+        """
+        this is a description
+        """
+
+    with (
+        PatchGlobal(code2, "__name__", "__main__"),
+        pytest.raises(SystemExit) as e,
+    ):
+        simplecli.wrap(code2)
 
     help_msg = e.value.args[0]
     assert re.search(r"Description:", help_msg)

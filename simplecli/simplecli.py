@@ -323,6 +323,8 @@ def format_docstring(docstring: str) -> str:
 
 
 def wrap(func: Callable[..., Any]) -> None:
+    if func.__globals__["__name__"] != "__main__":
+        return
     global _wrapped
     if _wrapped:
         exit("Error, sorry only ONE `@wrap` decorator allowed!")
