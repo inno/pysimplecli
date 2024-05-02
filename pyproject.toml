@@ -28,6 +28,12 @@ per-file-ignores = """
     tests: S101
 """
 
+[tool.poe.tasks.coverage]
+shell = """
+    poetry run coverage run \
+    && poetry run coverage html \
+    && open htmlcov/index.html
+"""
 [tool.poetry]
 name = "simplecli"
 version = "0.1.0"
@@ -46,6 +52,7 @@ typing_extensions = "*"
 bandit = "^1.7.8"
 coverage = "^7.4.4"
 flake8 = "^7.0.0"
+poethepoet = "*"
 ruff = "^0.3.4"
 
 [tool.pytest.ini_options]
