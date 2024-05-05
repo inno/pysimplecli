@@ -386,18 +386,10 @@ def code_to_ordered_params(code: Callable[..., Any]) -> OrderedDict:
     )
 
 
-def hints_from_ordered_params(ordered_params: OrderedDict) -> dict[str, type]:
-    hints = {k: v.annotation for k, v in ordered_params.items()}.copy()
-    # We don't care about the return value of the entrypoint
-    if "return" in hints:
-        hints.pop("return")
-    return hints
-
-
 def extract_code_params(code: Callable[..., Any]) -> list[Param]:
     tokens = tokenize_string(inspect.getsource(code))
     ordered_params = code_to_ordered_params(code)
-    hints = hints_from_ordered_params(ordered_params)
+    hints = {k: v.annotation for k, v in ordered_params.items()}.copy()
     comment = ""
     param = None
     params: list[Param] = []
