@@ -152,6 +152,7 @@ def test_parse_or_prepend_optional():
 
 def test_parse_or_prepend_union_none():
     p1 = Param(name="testparam1", annotation=Union[None, str])
+    assert p1.internal_only is False
     assert p1.optional is True
     assert p1.required is False
     assert p1.description == ""
@@ -160,3 +161,10 @@ def test_parse_or_prepend_union_none():
     assert p1.optional is True
     assert p1.required is False
     assert p1.description == "blarg"
+
+
+def test_internal_only():
+    p1 = Param(name="testparam1", internal_only=True)
+    assert p1.internal_only is True
+    assert p1.required is False
+    assert p1.optional is False

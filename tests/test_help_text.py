@@ -8,7 +8,6 @@ def test_help_text_union():
         filename="filename",
         params=[Param(name="somevar", annotation=Union[int, float])],
     )
-    print(text)
     assert "[int, float]" in text
     assert "OPTIONAL" not in text
 
@@ -19,7 +18,6 @@ def test_help_text_uniontype():
         filename="filename",
         params=[Param(name="somevar", annotation=float | int)],
     )
-    print(text)
     assert "[float, int]" in text
     assert "OPTIONAL" not in text
 

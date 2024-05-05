@@ -10,34 +10,6 @@ def ensure_wrapped_not_flagged():
     simplecli._wrapped = False
 
 
-class PatchGlobal:
-    def __init__(
-        self,
-        func: typing.Callable,
-        name: str,
-        value: str,
-    ) -> None:
-        self.func = func
-        self.name = name
-        self.value = value
-        self._no_actual_value = False
-
-    def __enter__(self) -> "PatchGlobal":
-        if self.name not in self.func.__globals__:
-            self._no_actual_value = True
-        else:
-            self.actual_value = self.func.__globals__.get(self.name)
-        self.func.__globals__[self.name] = self.value
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb) -> "PatchGlobal":
-        if self._no_actual_value:
-            self.func.__globals__.pop(self.name)
-        else:
-            self.func.__globals__[self.name] = self.actual_value
-        return self
-
-
 def test_wrap_simple(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["filename", "123"])
 
@@ -68,10 +40,8 @@ def test_wrap_help_simple(monkeypatch):
     def code1(this_var: int):  # stuff and things
         pass
 
-    with (
-        PatchGlobal(code1, "__name__", "__main__"),
-        pytest.raises(SystemExit) as e,
-    ):
+    with pytest.raises(SystemExit) as e:
+        code1.__globals__["__name__"] = "__main__"
         simplecli.wrap(code1)
 
     help_msg = e.value.args[0]
@@ -90,10 +60,8 @@ def test_wrap_help_complex(monkeypatch):
     ):
         pass
 
-    with (
-        PatchGlobal(code, "__name__", "__main__"),
-        pytest.raises(SystemExit) as e,
-    ):
+    with pytest.raises(SystemExit) as e:
+        code.__globals__["__name__"] = "__main__"
         simplecli.wrap(code)
 
     help_msg = e.value.args[0]
@@ -111,10 +79,8 @@ def test_wrap_simple_type_error(monkeypatch):
     def code(a: int):
         pass
 
-    with (
-        PatchGlobal(code, "__name__", "__main__"),
-        pytest.raises(SystemExit, match="Too many positional"),
-    ):
+    with pytest.raises(SystemExit, match="Too many positional"):
+        code.__globals__["__name__"] = "__main__"
         simplecli.wrap(code)
 
 
@@ -124,10 +90,8 @@ def test_wrap_simple_value_error(monkeypatch):
     def code(a: int):
         pass
 
-    with (
-        PatchGlobal(code, "__name__", "__main__"),
-        pytest.raises(SystemExit, match="must be of type int"),
-    ):
+    with pytest.raises(SystemExit, match="must be of type int"):
+        code.__globals__["__name__"] = "__main__"
         simplecli.wrap(code)
 
 
@@ -137,10 +101,8 @@ def test_wrap_version_absent(monkeypatch):
     def code2(this_var: int):  # stuff and things
         pass
 
-    with (
-        PatchGlobal(code2, "__name__", "__main__"),
-        pytest.raises(SystemExit) as e,
-    ):
+    with pytest.raises(SystemExit) as e:
+        code2.__globals__["__name__"] = "__main__"
         simplecli.wrap(code2)
 
     help_msg = e.value.args[0]
@@ -157,11 +119,9 @@ def test_wrap_version_exists(monkeypatch):
     def code1(this_var: int):  # stuff and things
         pass
 
-    with (
-        PatchGlobal(code1, "__version__", "1.2.3"),
-        PatchGlobal(code1, "__name__", "__main__"),
-        pytest.raises(SystemExit) as e,
-    ):
+    with pytest.raises(SystemExit) as e:
+        code1.__globals__["__name__"] = "__main__"
+        code1.__globals__["__version__"] = "1.2.3"
         simplecli.wrap(code1)
 
     help_msg = e.value.args[0]
@@ -180,10 +140,8 @@ def test_docstring(monkeypatch):
         this is a description
         """
 
-    with (
-        PatchGlobal(code2, "__name__", "__main__"),
-        pytest.raises(SystemExit) as e,
-    ):
+    with pytest.raises(SystemExit) as e:
+        code2.__globals__["__name__"] = "__main__"
         simplecli.wrap(code2)
 
     help_msg = e.value.args[0]
@@ -204,10 +162,8 @@ def test_wrap_uniontype(monkeypatch):
     ):
         pass
 
-    with (
-        PatchGlobal(code, "__name__", "__main__"),
-        pytest.raises(SystemExit) as e,
-    ):
+    with pytest.raises(SystemExit) as e:
+        code.__globals__["__name__"] = "__main__"
         simplecli.wrap(code)
 
     help_msg = e.value.args[0]
@@ -217,3 +173,15 @@ def test_wrap_uniontype(monkeypatch):
     assert "--count" in help_msg
     assert "Default: 54" in help_msg
     assert "OPTIONAL" not in help_msg
+
+
+def test_wrap_simple_positional(capfd, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "1", "2", "3.5"])
+
+    def code(a: int, b: int, c: typing.Union[int, float]):
+        print(a + b + c)
+
+    code.__globals__["__name__"] = "__main__"
+    simplecli.wrap(code)
+    (out, _) = capfd.readouterr()
+    assert out.strip() == "6.5"

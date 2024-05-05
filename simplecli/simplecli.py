@@ -1,3 +1,4 @@
+from __future__ import annotations
 import contextlib
 import inspect
 import io
@@ -191,6 +192,8 @@ class Param(inspect.Parameter):
     def validate(self, value: ValueType) -> bool:
         passed = False
         for expected_type in self.datatypes:
+            if expected_type is type(None):
+                continue
             try:
                 expected_type(value)
                 return True
@@ -207,7 +210,10 @@ class Param(inspect.Parameter):
         args = get_args(self.annotation)
         if args:
             for type_arg in args:
-                with contextlib.suppress(TypeError):
+                with (
+                    contextlib.suppress(TypeError),
+                    contextlib.suppress(ValueError),
+                ):
                     self._value = type_arg(value)
             return
         if value is DefaultIfBool:
@@ -318,6 +324,7 @@ def params_to_kwargs(
     if missing_params:
         raise TypeError(*missing_params_msg(missing_params))
 
+    # If any value from kw_args is not in params, exit with prejiduce!
     check_for_unexpected_args(params, kw_args)
     return {param.name: param.value for param in params}
 
@@ -386,30 +393,40 @@ def code_to_ordered_params(code: Callable[..., Any]) -> OrderedDict:
     )
 
 
+def process_comment(
+    param: Param | None,
+    params: list[Param],
+    token: TokenInfo,
+) -> str:
+    comment = token.string
+    if params and param is None:
+        params[-1].parse_or_prepend(token.line, comment)
+        comment = ""
+    elif param:
+        param.parse_or_prepend(token.line, comment, False)
+    return comment
+
+
 def extract_code_params(code: Callable[..., Any]) -> list[Param]:
-    tokens = tokenize_string(inspect.getsource(code))
     ordered_params = code_to_ordered_params(code)
     hints = {k: v.annotation for k, v in ordered_params.items()}.copy()
     comment = ""
     param = None
     params: list[Param] = []
 
-    depth = 0
-    for token in tokens:
-        depth += 1
+    for token in tokenize_string(inspect.getsource(code)):
         if token.exact_type is COMMENT:
-            comment = token.string
-            if params and param is None:
-                params[-1].parse_or_prepend(token.line, comment)
-                comment = ""
-            elif param:
-                param.parse_or_prepend(token.line, comment, False)
+            comment = process_comment(param, params, token)
             continue
         # tokenize.NL -
         # when a logical line of code is continued over multiple lines
         if token.exact_type is NL and param:
             param.parse_or_prepend(token.line, comment)
         elif token.exact_type is NAME and token.string in hints:
+            if param is not None:
+                comment = ""
+                params.append(param)
+                param = None
             hints.pop(token.string)
             param = ordered_params.pop(token.string)
             if not param.parse_or_prepend(token.line, comment):
@@ -420,7 +437,6 @@ def extract_code_params(code: Callable[..., Any]) -> list[Param]:
         comment = ""
         params.append(param)
         param = None
-    # Necessary for < py3.12
     if param:
         params.append(param)
     return params
