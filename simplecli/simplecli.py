@@ -15,6 +15,9 @@ from tokenize import (
     TokenInfo,
     generate_tokens,
 )
+from types import (
+    UnionType,
+)
 from typing import (
     Any,
     Callable,
@@ -57,7 +60,7 @@ class Param(inspect.Parameter):
             kwargs["name"] = argv[0]
             argv = ()
         if kwargs["annotation"] not in get_args(ValueType):
-            if get_origin(kwargs["annotation"]) is not Union:
+            if get_origin(kwargs["annotation"]) not in (Union, UnionType):
                 if kwargs["annotation"] is not Empty:
                     raise ValueError(
                         "annotation type "
@@ -113,7 +116,7 @@ class Param(inspect.Parameter):
 
     @property
     def help_type(self) -> str:
-        if get_origin(self.annotation) is Union:
+        if get_origin(self.annotation) in (Union, UnionType):
             typelist = ", ".join([a.__name__ for a in self.datatypes])
             return f"[{typelist}]"
         return self.annotation.__name__
@@ -220,15 +223,14 @@ def help_text(
         help_msg += ["Description: ", f"\t{docstring.lstrip()}"]
     help_msg.append("Options:")
     for param in params:
-        if get_origin(param.annotation) is Union:
-            types = [a.__name__ for a in get_args(param.annotation)]
+        if get_origin(param.annotation) in (Union, UnionType):
+            types = [a.__name__ for a in param.datatypes]
             if "NoneType" in types:
                 types.remove("NoneType")
                 arg_types = " ".join(types)
                 arg_types += " OPTIONAL"
             else:
                 arg_types = param.help_type
-                arg_types += " OPTIONAL"
         else:
             arg_types = param.help_type
         help_line = f" --{param.help_name}"

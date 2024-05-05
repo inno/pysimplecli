@@ -96,3 +96,13 @@ def test_set_value():
     p3 = Param(name="testparam3", annotation=str)
     with pytest.raises(ValueError, match="requires a value"):
         p3.set_value(DefaultIfBool)
+
+
+def test_union_uniontype():
+    p1 = Param(name="testparam1", annotation=Union[str, float])
+    assert p1.datatypes == [str, float]
+    assert p1.help_type == "[str, float]"
+
+    p2 = Param(name="testparam2", annotation=int | bool)
+    assert p2.datatypes == [int, bool]
+    assert p2.help_type == "[int, bool]"

@@ -49,17 +49,16 @@ def test_wrap_simple(monkeypatch):
 def test_wrap_dupe(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["filename", "123"])
 
-    # with pytest.raises(SystemExit, match="only ONE"):
     def code1(a: int):
         pass
 
     def code2(a: int):
         pass
 
-    with PatchGlobal(code1, "__name__", "__main__"):
+    with pytest.raises(SystemExit, match="only ONE"):
+        code1.__globals__["__name__"] = "__main__"
+        code2.__globals__["__name__"] = "__main__"
         simplecli.wrap(code1)
-
-    with PatchGlobal(code2, "__name__", "__main__"):
         simplecli.wrap(code2)
 
 
