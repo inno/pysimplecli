@@ -1,6 +1,8 @@
+from __future__ import annotations
 import pytest
 import re
 from simplecli.simplecli import DefaultIfBool, Empty, Param
+from tests.utils import skip_if_uniontype_unsupported
 from typing import Optional, Union
 
 
@@ -98,11 +100,14 @@ def test_set_value():
         p3.set_value(DefaultIfBool)
 
 
-def test_union_uniontype():
+def test_union():
     p1 = Param(name="testparam1", annotation=Union[str, float])
     assert p1.datatypes == [str, float]
     assert p1.help_type == "[str, float]"
 
+
+@skip_if_uniontype_unsupported
+def test_uniontype():
     p2 = Param(name="testparam2", annotation=int | bool)
     assert p2.datatypes == [int, bool]
     assert p2.help_type == "[int, bool]"
@@ -121,7 +126,10 @@ def test_union_optional():
     assert p1.optional is True
     assert p1.required is False
 
-    p2 = Param(name="testparam2", annotation=None | bool)
+
+@skip_if_uniontype_unsupported
+def test_uniontype_optional():
+    p2 = Param(name="testparam2", annotation=type(None) | bool)
     assert p2.datatypes == [type(None), bool]
     assert p2.help_type == "[NoneType, bool]"
 
@@ -146,15 +154,9 @@ def test_parse_or_prepend_union_none():
     p1 = Param(name="testparam1", annotation=Union[None, str])
     assert p1.optional is True
     assert p1.required is False
+    assert p1.description == ""
+
     p1.parse_or_prepend("   testparam1: Union[None, str],  # blarg")
     assert p1.optional is True
     assert p1.required is False
-
-
-def test_parse_or_prepend_uniontype_none():
-    p1 = Param(name="testparam1", annotation=None | str)
-    assert p1.optional is True
-    assert p1.required is False
-    p1.parse_or_prepend("   testparam1: UnionNone | str,  # blarg")
-    assert p1.optional is True
-    assert p1.required is False
+    assert p1.description == "blarg"

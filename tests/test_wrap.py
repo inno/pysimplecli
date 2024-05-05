@@ -1,8 +1,8 @@
 import pytest
-import re
 import sys
 import typing
 from simplecli import simplecli
+from tests.utils import skip_if_uniontype_unsupported
 
 
 @pytest.fixture(autouse=True)
@@ -75,9 +75,9 @@ def test_wrap_help_simple(monkeypatch):
         simplecli.wrap(code1)
 
     help_msg = e.value.args[0]
-    assert re.search(r"--this-var", help_msg)
-    assert re.search(r"\(int\)", help_msg)
-    assert re.search(r"stuff and things", help_msg)
+    assert "--this-var" in help_msg
+    assert "(int)" in help_msg
+    assert "stuff and things" in help_msg
 
 
 def test_wrap_help_complex(monkeypatch):
@@ -97,12 +97,12 @@ def test_wrap_help_complex(monkeypatch):
         simplecli.wrap(code)
 
     help_msg = e.value.args[0]
-    assert re.search(r"--that-var", help_msg)
-    assert re.search(r"\[str, int\]", help_msg)
-    assert re.search(r"that is the var", help_msg)
-    assert re.search(r"--count", help_msg)
-    assert re.search(r"Default: 54", help_msg)
-    assert re.search(r"OPTIONAL", help_msg)
+    assert "--that-var" in help_msg
+    assert "[str, int]" in help_msg
+    assert "that is the var" in help_msg
+    assert "--count" in help_msg
+    assert "Default: 54" in help_msg
+    assert "OPTIONAL" in help_msg
 
 
 def test_wrap_simple_type_error(monkeypatch):
@@ -144,11 +144,11 @@ def test_wrap_version_absent(monkeypatch):
         simplecli.wrap(code2)
 
     help_msg = e.value.args[0]
-    assert not re.search(r"Description:", help_msg)
-    assert not re.search(r"Version: 1.2.3", help_msg)
-    assert re.search(r"--this-var", help_msg)
-    assert re.search(r"\(int\)", help_msg)
-    assert re.search(r"stuff and things", help_msg)
+    assert "Description:" not in help_msg
+    assert "Version: 1.2.3" not in help_msg
+    assert "--this-var" in help_msg
+    assert "(int)" in help_msg
+    assert "stuff and things" in help_msg
 
 
 def test_wrap_version_exists(monkeypatch):
@@ -165,11 +165,11 @@ def test_wrap_version_exists(monkeypatch):
         simplecli.wrap(code1)
 
     help_msg = e.value.args[0]
-    assert re.search(r"Version: 1.2.3", help_msg)
-    assert not re.search(r"Description:", help_msg)
-    assert not re.search(r"--this-var", help_msg)
-    assert not re.search(r"\(int\)", help_msg)
-    assert not re.search(r"stuff and things", help_msg)
+    assert "Version: 1.2.3" in help_msg
+    assert "Description:" not in help_msg
+    assert "--this-var" not in help_msg
+    assert "(int)" not in help_msg
+    assert "stuff and things" not in help_msg
 
 
 def test_docstring(monkeypatch):
@@ -187,8 +187,33 @@ def test_docstring(monkeypatch):
         simplecli.wrap(code2)
 
     help_msg = e.value.args[0]
-    assert re.search(r"Description:", help_msg)
-    assert re.search(r"this is a description", help_msg)
-    assert re.search(r"--this-var", help_msg)
-    assert re.search(r"\(int\)", help_msg)
-    assert re.search(r"stuff and things", help_msg)
+    assert "Description:" in help_msg
+    assert "this is a description" in help_msg
+    assert "--this-var" in help_msg
+    assert "(int)" in help_msg
+    assert "stuff and things" in help_msg
+
+
+@skip_if_uniontype_unsupported
+def test_wrap_uniontype(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "--help"])
+
+    def code(
+        that_var: str | int,  # that is the var
+        count: int = 54,  # number of things
+    ):
+        pass
+
+    with (
+        PatchGlobal(code, "__name__", "__main__"),
+        pytest.raises(SystemExit) as e,
+    ):
+        simplecli.wrap(code)
+
+    help_msg = e.value.args[0]
+    assert "--that-var" in help_msg
+    assert "[str, int]" in help_msg
+    assert "that is the var" in help_msg
+    assert "--count" in help_msg
+    assert "Default: 54" in help_msg
+    assert "OPTIONAL" not in help_msg

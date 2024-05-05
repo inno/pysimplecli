@@ -1,11 +1,6 @@
-import pytest
-import sys
 from simplecli.simplecli import Param, help_text
+from tests.utils import skip_if_uniontype_unsupported
 from typing import Optional, Union
-
-
-def min_py(major: int, minor: int) -> bool:
-    return sys.version_info < (major, minor)
 
 
 def test_help_text_union():
@@ -18,7 +13,7 @@ def test_help_text_union():
     assert "OPTIONAL" not in text
 
 
-@pytest.mark.skipif(min_py(3, 10), reason="Union Type requires >= py3.10")
+@skip_if_uniontype_unsupported
 def test_help_text_uniontype():
     text = help_text(
         filename="filename",
@@ -47,7 +42,7 @@ def test_help_text_union_none():
     assert "OPTIONAL" in text
 
 
-@pytest.mark.skipif(min_py(3, 10), reason="Union Type requires >= py3.10")
+@skip_if_uniontype_unsupported
 def test_help_text_uniontype_none():
     text = help_text(
         filename="filename",

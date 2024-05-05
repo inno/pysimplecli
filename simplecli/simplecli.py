@@ -1,4 +1,3 @@
-from __future__ import annotations
 import contextlib
 import inspect
 import io
@@ -14,9 +13,6 @@ from tokenize import (
     TokenInfo,
     generate_tokens,
 )
-from types import (
-    UnionType,
-)
 from typing import (
     Any,
     Callable,
@@ -24,6 +20,13 @@ from typing import (
     get_args,
     get_origin,
 )
+
+try:
+    from types import UnionType
+except ImportError:
+    # Adapted from cpython/Lib/types.py which defines it as `int | str`.
+    # This is ok because if UnionType is not imported, it is not supported.
+    UnionType = Union[int, str]  # type: ignore
 
 
 # 2023 - Clif Bratcher WIP
@@ -44,7 +47,7 @@ ArgList = list[str]
 class Param(inspect.Parameter):
     internal_only: bool  # Do not pass to wrapped function
     _required: bool  # Exit if a value is not present
-    _optional: bool | None = None  # Mirrors `Optional` type
+    _optional: Union[bool, None] = None  # Mirrors `Optional` type
 
     def __init__(self, *argv: Any, **kwargs: Any) -> None:
         kwargs["annotation"] = kwargs.pop("annotation", Empty)
