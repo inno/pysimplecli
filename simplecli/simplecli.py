@@ -83,7 +83,7 @@ class Param(inspect.Parameter):
         if self.internal_only:
             self.required = False
         if not self.description:
-            self.parse_line(param_line)
+            self._parse_line(param_line)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Param):
@@ -137,19 +137,19 @@ class Param(inspect.Parameter):
     def parse_or_prepend(
         self,
         line: str,
-        comment: str,
+        comment: Union[None, str] = None,
         overwrite: bool = True,
     ) -> bool:
         # Necessary for < py3.12
         if not overwrite and self.description:
             return False
 
-        line_set = self.parse_line(line)
+        line_set = self._parse_line(line)
         if comment:
             self._set_description(comment)
         return line_set
 
-    def parse_line(self, line: str) -> bool:
+    def _parse_line(self, line: str) -> bool:
         self.description = ""
         try:
             tokens = list(tokenize_string(line))

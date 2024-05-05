@@ -28,7 +28,7 @@ def test_integer_with_default_oneline():
         annotation=int,
         default=123,
     )
-    expected_param.parse_line("    def code(foo: int = 123):\n")
+    expected_param._parse_line("    def code(foo: int = 123):\n")
     assert params == [expected_param]
 
 
