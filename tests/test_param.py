@@ -1,7 +1,7 @@
 import pytest
 import re
 from simplecli.simplecli import DefaultIfBool, Empty, Param
-from typing import Union
+from typing import Optional, Union
 
 
 def test_required_arguments():
@@ -106,3 +106,55 @@ def test_union_uniontype():
     p2 = Param(name="testparam2", annotation=int | bool)
     assert p2.datatypes == [int, bool]
     assert p2.help_type == "[int, bool]"
+
+
+def test_union_optional():
+    p0 = Param(name="testparam1", annotation=Optional[float])
+    assert p0.datatypes == [float, type(None)]
+    assert p0.help_type == "[float, NoneType]"
+    assert p0.optional is True
+    assert p0.required is False
+
+    p1 = Param(name="testparam1", annotation=Union[None, float])
+    assert p1.datatypes == [type(None), float]
+    assert p1.help_type == "[NoneType, float]"
+    assert p1.optional is True
+    assert p1.required is False
+
+    p2 = Param(name="testparam2", annotation=None | bool)
+    assert p2.datatypes == [type(None), bool]
+    assert p2.help_type == "[NoneType, bool]"
+
+
+def test_parse_or_prepend_description():
+    p1 = Param(name="testparam1")
+    assert p1.description == ""
+    p1.parse_or_prepend(" testparam1,  # stuff and things")
+    assert p1.description == "stuff and things"
+
+
+def test_parse_or_prepend_optional():
+    p1 = Param(name="testparam1", annotation=Optional[str])
+    assert p1.optional is True
+    assert p1.required is False
+    p1.parse_or_prepend("   testparam1: Optional[str],")
+    assert p1.optional is True
+    assert p1.required is False
+
+
+def test_parse_or_prepend_union_none():
+    p1 = Param(name="testparam1", annotation=Union[None, str])
+    assert p1.optional is True
+    assert p1.required is False
+    p1.parse_or_prepend("   testparam1: Union[None, str],  # blarg")
+    assert p1.optional is True
+    assert p1.required is False
+
+
+def test_parse_or_prepend_uniontype_none():
+    p1 = Param(name="testparam1", annotation=None | str)
+    assert p1.optional is True
+    assert p1.required is False
+    p1.parse_or_prepend("   testparam1: UnionNone | str,  # blarg")
+    assert p1.optional is True
+    assert p1.required is False

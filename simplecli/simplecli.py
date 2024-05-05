@@ -1,3 +1,4 @@
+from __future__ import annotations
 import contextlib
 import inspect
 import io
@@ -9,8 +10,6 @@ from tokenize import (
     COMMENT,
     NAME,
     NL,
-    NUMBER,
-    STRING,
     TokenError,
     TokenInfo,
     generate_tokens,
@@ -44,8 +43,8 @@ ArgList = list[str]
 
 class Param(inspect.Parameter):
     internal_only: bool  # Do not pass to wrapped function
-    optional: bool  # Value can be `None`, mirrors `Optional` type
-    required: bool  # Exit if a value is not present
+    _required: bool  # Exit if a value is not present
+    _optional: bool | None = None  # Mirrors `Optional` type
 
     def __init__(self, *argv: Any, **kwargs: Any) -> None:
         kwargs["annotation"] = kwargs.pop("annotation", Empty)
@@ -71,19 +70,19 @@ class Param(inspect.Parameter):
         param_line = str(kwargs.pop("line", ""))
         param_value = kwargs.pop("value", Empty)
         param_internal_only = bool(kwargs.pop("internal_only", False))
-        param_optional = bool(kwargs.pop("optional", False))
+        param_optional = kwargs.pop("optional", None)
         param_required = bool(kwargs.pop("required", True))
         super().__init__(*argv, **kwargs)
         self._value = param_value
         self.description = param_description
         self.internal_only = param_internal_only
-        self.optional = param_optional
-        self.required = param_required
+        self._optional = (
+            bool(param_optional) if param_optional is not None else None
+        )
+        self._required = param_required
         # Overrides required as these values are generally unused
-        if self.internal_only:
-            self.required = False
         if not self.description:
-            self._parse_line(param_line)
+            self.parse_or_prepend(param_line)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Param):
@@ -109,6 +108,29 @@ class Param(inspect.Parameter):
             f"optional={self.optional} "
             f"value={value} "
         )
+
+    @property
+    def required(self) -> bool:
+        # Internal only params never requires a value
+        if self.internal_only:
+            return False
+
+        # Optional implies no required value
+        if self.optional:
+            return False
+
+        # Existence of a default value implies no required value
+        if self.default is not Empty:
+            return False
+
+        # Fallback to set/default value
+        return self._required
+
+    @property
+    def optional(self) -> bool:
+        if self._optional is not None:
+            return self._optional
+        return len(self.datatypes) == 2 and type(None) in self.datatypes
 
     @property
     def help_name(self) -> str:
@@ -144,29 +166,17 @@ class Param(inspect.Parameter):
         if not overwrite and self.description:
             return False
 
-        line_set = self._parse_line(line)
+        line_set = False
+        try:
+            for token in tokenize_string(line):
+                if token.exact_type is COMMENT:
+                    self._set_description(token.string, force=True)
+                    line_set = True
+        except TokenError:
+            line_set = False
         if comment:
             self._set_description(comment)
         return line_set
-
-    def _parse_line(self, line: str) -> bool:
-        self.description = ""
-        try:
-            tokens = list(tokenize_string(line))
-        except TokenError:
-            return False
-
-        for token in tokens:
-            if token.type not in (COMMENT, NAME, NUMBER, STRING):
-                continue
-            if token.exact_type is COMMENT:
-                self._set_description(token.string, force=True)
-            if token.string == "Optional":
-                self.required = False
-                self.optional = True
-        if self.default is not Empty:
-            self.required = False
-        return True
 
     @property
     def datatypes(self) -> list[type]:
