@@ -45,22 +45,29 @@ import simplecli
 
 @simplecli.wrap
 def main(
-    name: str,  # Your name here
+    name: str,  # Person to greet
 ):
     print(f"Hello, {name}!")
 ```
 
 ```bash
-python3 myprogram.py --name="My Name Here"
+$ python3 myprogram.py --name="Dade Murphy"
+Hello, Dade Murphy!
 ```
 
 ```bash
-python3 myprogram.py --help
-```
+$ python3 myprogram.py --help
+Usage:
+  myprogram.py [name]
+
+Options:
+ --name   Person to greet
+ --help   This message
+ ```
 
 ## How It Works
 
-The `wrap` decorator processes the annotated parameters of your function and maps them to corresponding command-line arguments. It uses Python's introspection features and the `tokenize` module to parse inline comments for parameter descriptions, enriching the auto-generated help output.
+The `wrap` decorator takes the annotated parameters of a given function and maps them to corresponding command-line arguments. It uses Python's introspection features and the `tokenize` module to parse inline comments for parameter descriptions, enriching the auto-generated help output.
 
 ## Why not just use `argparse`?
 
@@ -105,8 +112,8 @@ def add(
 
 ## Contributing
 
-Read the [CONTRIBUTING.md](CONTRIBUTING.md) file.
+Feel free to [open an issue][https://github.com/inno/pysimplecli//issues/new] and [create a pull request][https://github.com/inno/pysimplecli/pulls]!
 
 ## License
 
-pysimplecli is open-sourced under the MIT License.
+pysimplecli © 2024 by Clif Bratcher is licensed under [CC BY 4.0][https://creativecommons.org/licenses/by/4.0/]
