@@ -333,8 +333,6 @@ def format_docstring(docstring: str) -> str:
     # https://peps.python.org/pep-0008/#tabs-or-spaces
     docstring = docstring.rstrip()
     match = re.match(r"^\s*", docstring)
-    if not match:
-        return docstring
     return re.sub(
         " " * (match.span()[1] - 1),
         "",
