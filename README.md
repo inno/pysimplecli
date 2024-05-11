@@ -61,8 +61,8 @@ Usage:
   myprogram.py [name]
 
 Options:
- --name   Person to greet
- --help   This message
+  --name  Person to greet
+  --help  This message
  ```
 
 ## How It Works
@@ -112,7 +112,7 @@ def add(
 
 ## Contributing
 
-Feel free to [open an issue][https://github.com/inno/pysimplecli//issues/new] and [create a pull request][https://github.com/inno/pysimplecli/pulls]!
+Feel free to [open an issue](./issues/new) and [create a pull request](./pulls)!
 
 ## License
 
