@@ -46,7 +46,6 @@ def test_wrap_help_simple(monkeypatch):
 
     help_msg = e.value.args[0]
     assert "--this-var" in help_msg
-    assert "(int)" in help_msg
     assert "stuff and things" in help_msg
 
 
@@ -66,11 +65,9 @@ def test_wrap_help_complex(monkeypatch):
 
     help_msg = e.value.args[0]
     assert "--that-var" in help_msg
-    assert "[str, int]" in help_msg
     assert "that is the var" in help_msg
     assert "--count" in help_msg
     assert "Default: 54" in help_msg
-    assert "OPTIONAL" in help_msg
 
 
 def test_wrap_simple_type_error(monkeypatch):
@@ -109,7 +106,6 @@ def test_wrap_version_absent(monkeypatch):
     assert "Description:" not in help_msg
     assert "Version: 1.2.3" not in help_msg
     assert "--this-var" in help_msg
-    assert "(int)" in help_msg
     assert "stuff and things" in help_msg
 
 
@@ -128,7 +124,6 @@ def test_wrap_version_exists(monkeypatch):
     assert "Version: 1.2.3" in help_msg
     assert "Description:" not in help_msg
     assert "--this-var" not in help_msg
-    assert "(int)" not in help_msg
     assert "stuff and things" not in help_msg
 
 
@@ -148,7 +143,6 @@ def test_docstring(monkeypatch):
     assert "Description:" in help_msg
     assert "this is a description" in help_msg
     assert "--this-var" in help_msg
-    assert "(int)" in help_msg
     assert "stuff and things" in help_msg
 
 
@@ -168,7 +162,6 @@ def test_wrap_uniontype(monkeypatch):
 
     help_msg = e.value.args[0]
     assert "--that-var" in help_msg
-    assert "[str, int]" in help_msg
     assert "that is the var" in help_msg
     assert "--count" in help_msg
     assert "Default: 54" in help_msg

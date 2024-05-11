@@ -237,29 +237,28 @@ def help_text(
     params: list[Param],
     docstring: str = "",
 ) -> str:
-    help_msg = ["Usage: ", f"\t{filename} ..."]
+    help_msg = []
     if docstring:
         help_msg += ["Description: ", f"\t{docstring.lstrip()}"]
     help_msg.append("Options:")
+    positional = []
+    max_attr_len = len(max(params, key=lambda x: len(x.help_name)).help_name)
     for param in params:
-        if get_origin(param.annotation) in (Union, UnionType):
-            types = [a.__name__ for a in param.datatypes]
-            if "NoneType" in types:
-                types.remove("NoneType")
-                arg_types = " ".join(types)
-                arg_types += " OPTIONAL"
-            else:
-                arg_types = param.help_type
-        else:
-            arg_types = param.help_type
+        if param.required:
+            positional.append(param.help_name)
         help_line = f" --{param.help_name}"
-        if param.annotation is not Empty:
-            help_line += f"\t\t({arg_types})\t"
+        offset = max_attr_len - len(param.help_name) + 2
+        help_line += " " * offset
+        if param.description:
+            help_line += f" {param.description}"
         if param.default is not Empty:
-            help_line += f" [Default: {param.default}]"
-        help_line += f" {param.description}"
+            if type(param.default) in (int, float, str):
+                help_line += f" (Default: {param.default})"
         help_msg.append(help_line)
-    return "\n".join(help_msg)
+    usage = f"  {filename} "
+    if positional:
+        usage += "[" + "] [".join(positional) + "]"
+    return "\n".join(["Usage:", usage, ""] + help_msg)
 
 
 def clean_args(argv: list[str]) -> tuple[ArgList, ArgDict]:
@@ -358,7 +357,9 @@ def wrap(func: Callable[..., Any]) -> None:
     version = func.__globals__.get("__version__", "")
     if version:
         params.append(Param("version", internal_only=True))
-    params.append(Param("help", internal_only=True))
+    params.append(
+        Param("help", description="This message", internal_only=True)
+    )
     if "help" in kw_args:
         exit(help_text(filename, params, format_docstring(func.__doc__ or "")))
 

@@ -8,8 +8,8 @@ def test_help_text_union():
         filename="filename",
         params=[Param(name="somevar", annotation=Union[int, float])],
     )
-    assert "[int, float]" in text
-    assert "OPTIONAL" not in text
+    assert "filename [somevar]" in text
+    assert "--somevar" in text
 
 
 @skip_if_uniontype_unsupported
@@ -18,8 +18,8 @@ def test_help_text_uniontype():
         filename="filename",
         params=[Param(name="somevar", annotation=float | int)],
     )
-    assert "[float, int]" in text
-    assert "OPTIONAL" not in text
+    assert "filename [somevar]" in text
+    assert "--somevar" in text
 
 
 def test_help_text_optional():
@@ -27,8 +27,8 @@ def test_help_text_optional():
         filename="filename",
         params=[Param(name="somevar", annotation=Optional[float])],
     )
-    assert "float" in text
-    assert "OPTIONAL" in text
+    assert "filename [somevar]" not in text
+    assert "--somevar" in text
 
 
 def test_help_text_union_none():
@@ -36,8 +36,8 @@ def test_help_text_union_none():
         filename="filename",
         params=[Param(name="somevar", annotation=Union[float, None])],
     )
-    assert "float" in text
-    assert "OPTIONAL" in text
+    assert "filename [somevar]" not in text
+    assert "--somevar" in text
 
 
 @skip_if_uniontype_unsupported
@@ -46,5 +46,5 @@ def test_help_text_uniontype_none():
         filename="filename",
         params=[Param(name="somevar", annotation=float | None)],
     )
-    assert "float" in text
-    assert "OPTIONAL" in text
+    assert "filename [somevar]" not in text
+    assert "--somevar" in text
