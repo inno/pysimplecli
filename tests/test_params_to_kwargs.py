@@ -33,3 +33,14 @@ def test_required():
             pos_args=[],
             kw_args={"testparam1": "fooo"},
         )
+
+
+def test_unknown_arg():
+    p1 = Param(name="testparam1", annotation=str, required=False)
+    with pytest.raises(SystemExit, match="foo") as e:
+        params_to_kwargs(
+            params=[p1],
+            pos_args=[],
+            kw_args={"foo": "bar"},
+        )
+    assert "Unexpected argument" in str(e.value.args)
