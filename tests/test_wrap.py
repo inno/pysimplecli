@@ -146,6 +146,20 @@ def test_docstring(monkeypatch):
     assert "stuff and things" in help_msg
 
 
+def test_docstring_tab(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "--help"])
+
+    def code2(this_var: int):  # stuff and things
+        """
+        \t this is a description
+        """
+
+    with pytest.raises(ValueError) as e:
+        code2.__globals__["__name__"] = "__main__"
+        simplecli.wrap(code2)
+    assert "tabs are not supported" in str(e.value.args)
+
+
 @skip_if_uniontype_unsupported
 def test_wrap_uniontype(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["filename", "--help"])

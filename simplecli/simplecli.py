@@ -2,6 +2,7 @@ from __future__ import annotations
 import contextlib
 import inspect
 import io
+import os
 import re
 import sys
 from collections import OrderedDict
@@ -24,7 +25,7 @@ from typing import (
 
 try:
     from types import UnionType
-except ImportError:
+except ImportError:  # pragma: no cover - coverage is generated via py3.12
     # Adapted from cpython/Lib/types.py which defines it as `int | str`.
     # This is ok because if UnionType is not imported, it is not supported.
     UnionType = Union[int, str]  # type: ignore
@@ -329,16 +330,37 @@ def params_to_kwargs(
 
 
 def format_docstring(docstring: str) -> str:
-    # "Spaces are the preferred indentation method."
+    def first_line(
+        lines: list[str],
+        from_end: bool = False,
+        default: int = 0,
+    ) -> int:
+        offsets = list(range(len(lines)))
+        if from_end:
+            offsets.reverse()
+
+        # Get offset of first non-whitespace line
+        return next(
+            (i for i in offsets if not re.match(r"\s*$", lines[i])), default
+        )
+
     # https://peps.python.org/pep-0008/#tabs-or-spaces
-    docstring = docstring.rstrip()
-    match = re.match(r"^\s*", docstring)
-    return re.sub(
-        " " * (match.span()[1] - 1),
-        "",
-        docstring,
-        flags=re.MULTILINE,
-    )
+    if docstring.find("\t") != -1:
+        raise ValueError(
+            "For simplicity, tabs are not supported. Please remove tabs "
+            "from your docstring to use pysimplecli. See also PEP 8: "
+            "https://peps.python.org/pep-0008/#tabs-or-spaces"
+        )
+    lines = docstring.split(os.linesep)
+
+    # Shift all lines to the left as far as possible while keeping indents
+    min_indent = min([len(line) - len(line.lstrip(" ")) for line in lines])
+    reindented = [line[min_indent:] for line in lines]
+
+    # Remove all initial and trailing lines with no characters
+    start = first_line(reindented)
+    end = first_line(reindented, default=-1, from_end=True)
+    return "\n".join(reindented[start : end + 1])
 
 
 def wrap(func: Callable[..., Any]) -> None:
