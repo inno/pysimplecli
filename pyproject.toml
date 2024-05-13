@@ -35,11 +35,14 @@ shell = """
     && open htmlcov/index.html
 """
 [tool.poetry]
-name = "simplecli"
-version = "0.1.0"
+name = "pysimplecli"
+version = "1.0.0"
 description = ""
 authors = ["Clif Bratcher <cebratcher@gmail.com>"]
 readme = "README.md"
+packages = [
+    {include = "simplecli"}
+]
 
 [tool.poetry.dependencies]
 python = "^3.9"
