@@ -104,13 +104,13 @@ def test_wrap_version_absent(monkeypatch):
 
     help_msg = e.value.args[0]
     assert "Description:" not in help_msg
-    assert "Version: 1.2.3" not in help_msg
+    assert "version 1.2.3" not in help_msg
     assert "--this-var" in help_msg
     assert "stuff and things" in help_msg
 
 
 def test_wrap_version_exists(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["filename", "--version"])
+    monkeypatch.setattr(sys, "argv", ["super_script", "--version"])
 
     def code1(this_var: int):  # stuff and things
         pass
@@ -121,7 +121,7 @@ def test_wrap_version_exists(monkeypatch):
         simplecli.wrap(code1)
 
     help_msg = e.value.args[0]
-    assert "Version: 1.2.3" in help_msg
+    assert "super_script version 1.2.3" in help_msg
     assert "Description:" not in help_msg
     assert "--this-var" not in help_msg
     assert "stuff and things" not in help_msg

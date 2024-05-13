@@ -10,7 +10,10 @@ def test_help_text_docstring_indent_simple():
         more things
     """
     text = format_docstring(docstring)
-    assert text == "stuff\n  things\n    more things".replace("\n", os.linesep)
+    expected = "  stuff\n    things\n      more things".replace(
+        "\n", os.linesep
+    )
+    assert text == expected
 
 
 def test_help_text_docstring_indent_hanging_whitespace():
@@ -19,7 +22,7 @@ def test_help_text_docstring_indent_hanging_whitespace():
       things
     """
     text = format_docstring(docstring)
-    assert text == "stuff\n  things".replace("\n", os.linesep)
+    assert text == "  stuff\n    things".replace("\n", os.linesep)
 
 
 def test_help_text_docstring_empty():

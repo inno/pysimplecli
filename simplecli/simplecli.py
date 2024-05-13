@@ -245,7 +245,7 @@ def help_text(
 ) -> str:
     help_msg = []
     if docstring:
-        help_msg += ["Description:", "  " + docstring]
+        help_msg += ["Description:", docstring, ""]
     help_msg.append("Options:")
     positional = []
     max_attr_len = len(max(params, key=lambda x: len(x.help_name)).help_name)
@@ -297,9 +297,9 @@ def missing_params_msg(missing_params: list[Param]) -> list[str]:
         )
     ]
     for param in missing_params:
-        mp_text.append(f"\t--{param.help_name}")
+        mp_text.append(f"  --{param.help_name}")
         if param.description:
-            mp_text[-1] += f" - {param.description}"
+            mp_text[-1] += f"  {param.description}"
     return mp_text
 
 
@@ -344,7 +344,7 @@ def format_docstring(docstring: str) -> str:
 
     start = end_offset = 0
     searching_for_start = True
-    minimum_indent = 99  # Arbitrarily large minimum indent as a placeholder
+    minimum_indent = 2
     lines = docstring.splitlines()
     for offset, line in enumerate(lines):
         indent = re.match(r"\s*", line).span()[1]  # type: ignore[union-attr]
@@ -372,18 +372,25 @@ def wrap(func: Callable[..., Any]) -> None:
     argv = sys.argv[1:]
     params = extract_code_params(code=func)
     pos_args, kw_args = clean_args(argv)
+    params.append(
+        Param("help", description="Show this message", internal_only=True)
+    )
     version = func.__globals__.get("__version__", "")
     if version:
-        params.append(Param("version", internal_only=True))
-    params.append(
-        Param("help", description="This message", internal_only=True)
-    )
+        params.append(
+            Param(
+                "version",
+                description=f"Display {filename} version",
+                internal_only=True,
+            )
+        )
+
     if "help" in kw_args:
         exit(help_text(filename, params, format_docstring(func.__doc__ or "")))
 
     if "version" in kw_args:
         if version != "":
-            exit(f"Version: {version}")
+            exit(f"{filename} version {version}")
 
     # Strip internal-only
     params = [param for param in params if not param.internal_only]
