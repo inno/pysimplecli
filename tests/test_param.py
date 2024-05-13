@@ -81,7 +81,7 @@ def test_set_value():
     assert p1.value == 3
 
     p2 = Param(name="testparam2", annotation=bool)
-    assert p2.value is Empty
+    assert p2.value is False
 
     p2.set_value(DefaultIfBool)
     assert p2.value is True
@@ -169,3 +169,24 @@ def test_internal_only():
     assert p1.internal_only is True
     assert p1.required is False
     assert p1.optional is False
+
+
+def test_param_boolean_true():
+    p1 = Param(name="testparam1", annotation=bool, default=True)
+    assert p1.required is False
+    assert p1.optional is False
+    assert p1.value is True
+
+
+def test_param_boolean_false():
+    p1 = Param(name="testparam1", annotation=bool, default=False)
+    assert p1.required is False
+    assert p1.optional is False
+    assert p1.value is False
+
+
+def test_param_boolean_implied_false():
+    p1 = Param(name="testparam1", annotation=bool)
+    assert p1.required is False
+    assert p1.optional is False
+    assert p1.value is False

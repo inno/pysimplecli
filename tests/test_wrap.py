@@ -178,3 +178,35 @@ def test_wrap_simple_positional(capfd, monkeypatch):
     simplecli.wrap(code)
     (out, _) = capfd.readouterr()
     assert out.strip() == "6.5"
+
+
+def test_wrap_boolean_false(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "--is-false"])
+
+    @simplecli.wrap
+    def code(is_false: bool = False):
+        assert is_false is False
+
+
+def test_wrap_boolean_true(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "--is-true"])
+
+    @simplecli.wrap
+    def code(is_true: bool = True):
+        assert is_true is True
+
+
+def test_wrap_boolean_true_no_default(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "--is-something"])
+
+    @simplecli.wrap
+    def code(is_something: bool):
+        assert is_something is True
+
+
+def test_wrap_boolean_true_no_default_no_arg(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename"])
+
+    @simplecli.wrap
+    def code(is_something: bool):
+        assert is_something is False

@@ -128,6 +128,9 @@ class Param(inspect.Parameter):
         if self.default is not Empty:
             return False
 
+        if bool in self.datatypes:
+            return False
+
         # Fallback to set/default value
         return self._required
 
@@ -154,6 +157,8 @@ class Param(inspect.Parameter):
             return self._value
         if self.default is not Empty:
             return self.default
+        if bool in self.datatypes:
+            return False
         return Empty
 
     def _set_description(self, line: str, force: bool = False) -> None:
@@ -218,7 +223,7 @@ class Param(inspect.Parameter):
                     self._value = type_arg(value)
             return
         if value is DefaultIfBool:
-            if self.annotation is not bool:
+            if bool not in self.datatypes:
                 raise ValueError(f"'{self.help_name}' requires a value")
             if self.default != Empty:
                 self._value = self.annotation(self.default)
@@ -292,7 +297,7 @@ def missing_params_msg(missing_params: list[Param]) -> list[str]:
         )
     ]
     for param in missing_params:
-        mp_text.append(f"\t--{param.help_name}\t({param.help_type})")
+        mp_text.append(f"\t--{param.help_name}")
         if param.description:
             mp_text[-1] += f" - {param.description}"
     return mp_text
