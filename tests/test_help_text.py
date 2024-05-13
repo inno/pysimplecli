@@ -48,3 +48,12 @@ def test_help_text_uniontype_none():
     )
     assert "filename [somevar]" not in text
     assert "--somevar" in text
+
+
+def test_help_text_boolean():
+    text = help_text(
+        filename="filename",
+        params=[Param(name="somevar", annotation=bool, default=True)],
+    )
+    assert "filename [somevar]" not in text
+    assert "--somevar" in text
