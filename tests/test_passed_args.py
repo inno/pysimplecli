@@ -1,31 +1,31 @@
-from simplecli import simplecli
+from simplecli.simplecli import DefaultIfBool, clean_args
 
 
 def test_clean_args_empty():
-    assert simplecli.clean_args([]) == ([], {})
+    assert clean_args([]) == ([], {})
 
 
 def test_clean_args_named_value():
-    assert simplecli.clean_args(["--foo=bar"]) == ([], {"foo": "bar"})
+    assert clean_args(["--foo=bar"]) == ([], {"foo": "bar"})
 
 
 def test_clean_args_named_flag():
-    assert simplecli.clean_args(["--quux"]) == (
+    assert clean_args(["--quux"]) == (
         [],
-        {"quux": simplecli.DefaultIfBool},
+        {"quux": DefaultIfBool},
     )
 
 
 def test_clean_args_single():
-    assert simplecli.clean_args(["-bar", "123"]) == (["-bar", "123"], {})
+    assert clean_args(["-bar", "123"]) == (["-bar", "123"], {})
 
 
 def test_clean_args_hyphen_to_underscore():
-    assert simplecli.clean_args(["--foo-bar-s=quux"]) == (
+    assert clean_args(["--foo-bar-s=quux"]) == (
         [],
         {"foo_bar_s": "quux"},
     )
 
 
 def test_clean_args_positional():
-    assert simplecli.clean_args(["foo", "bar"]) == (["foo", "bar"], {})
+    assert clean_args(["foo", "bar"]) == (["foo", "bar"], {})
