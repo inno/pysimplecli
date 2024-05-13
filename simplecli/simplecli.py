@@ -240,14 +240,14 @@ def help_text(
 ) -> str:
     help_msg = []
     if docstring:
-        help_msg += ["Description: ", f"\t{docstring.lstrip()}"]
+        help_msg += ["Description:", "  " + docstring]
     help_msg.append("Options:")
     positional = []
     max_attr_len = len(max(params, key=lambda x: len(x.help_name)).help_name)
     for param in params:
         if param.required:
             positional.append(param.help_name)
-        help_line = f" --{param.help_name}"
+        help_line = f"  --{param.help_name}"
         offset = max_attr_len - len(param.help_name) + 2
         help_line += " " * offset
         if param.description:
@@ -330,37 +330,30 @@ def params_to_kwargs(
 
 
 def format_docstring(docstring: str) -> str:
-    def first_line(
-        lines: list[str],
-        from_end: bool = False,
-        default: int = 0,
-    ) -> int:
-        offsets = list(range(len(lines)))
-        if from_end:
-            offsets.reverse()
-
-        # Get offset of first non-whitespace line
-        return next(
-            (i for i in offsets if not re.match(r"\s*$", lines[i])), default
-        )
-
-    # https://peps.python.org/pep-0008/#tabs-or-spaces
     if docstring.find("\t") != -1:
         raise ValueError(
             "For simplicity, tabs are not supported. Please remove tabs "
             "from your docstring to use pysimplecli. See also PEP 8: "
             "https://peps.python.org/pep-0008/#tabs-or-spaces"
         )
+
+    start = end_offset = 0
+    searching_for_start = True
+    minimum_indent = 99  # Arbitrarily large minimum indent as a placeholder
     lines = docstring.split(os.linesep)
+    for offset, line in enumerate(lines):
+        indent = re.match(r"\s*", line).span()[1]  # type: ignore[union-attr]
+        if indent != len(line):
+            end_offset = 0  # Reset counter if we have a useful line
+            minimum_indent = min(indent, minimum_indent)
+            searching_for_start = False
+        elif searching_for_start:
+            start = offset + 1
+        else:
+            end_offset += 1
 
-    # Shift all lines to the left as far as possible while keeping indents
-    min_indent = min([len(line) - len(line.lstrip(" ")) for line in lines])
-    reindented = [line[min_indent:] for line in lines]
-
-    # Remove all initial and trailing lines with no characters
-    start = first_line(reindented)
-    end = first_line(reindented, default=-1, from_end=True)
-    return "\n".join(reindented[start : end + 1])
+    aligned_lines = [line[minimum_indent:] for line in lines]
+    return "\n".join(aligned_lines[start : len(lines) - end_offset])
 
 
 def wrap(func: Callable[..., Any]) -> None:
