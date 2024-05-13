@@ -36,8 +36,8 @@ shell = """
 """
 [tool.poetry]
 name = "pysimplecli"
-version = "1.0.0"
-description = ""
+version = "1.0.1"
+description = "Easily turn functions into command line utilities"
 authors = ["Clif Bratcher <cebratcher@gmail.com>"]
 readme = "README.md"
 packages = [
@@ -46,7 +46,6 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.9"
-poethepoet = "^0.26.1"
 
 [tool.poetry.group.test.dependencies]
 pytest ="*"
