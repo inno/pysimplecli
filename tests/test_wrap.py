@@ -210,3 +210,10 @@ def test_wrap_boolean_true_no_default_no_arg(monkeypatch):
     @simplecli.wrap
     def code(is_something: bool):
         assert is_something is False
+
+
+def test_directly_called_wrap(monkeypatch):
+    import tests.nested_test as nt
+
+    assert nt.code(1, foo="test") == "2 test!"
+    assert nt.code(test_id=2, foo="blarg") == "3 blarg!"

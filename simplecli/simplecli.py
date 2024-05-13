@@ -361,9 +361,9 @@ def format_docstring(docstring: str) -> str:
     return os.linesep.join(aligned_lines[start : len(lines) - end_offset])
 
 
-def wrap(func: Callable[..., Any]) -> None:
+def wrap(func: Callable[..., Any]) -> Callable[..., Any]:
     if func.__globals__["__name__"] != "__main__":
-        return
+        return func
     global _wrapped
     if _wrapped:
         exit("Error, sorry only ONE `@wrap` decorator allowed!")
@@ -399,7 +399,7 @@ def wrap(func: Callable[..., Any]) -> None:
     except TypeError as e:
         exit("\n".join(e.args))
 
-    func(**kwargs)
+    return func(**kwargs)
 
 
 def code_to_ordered_params(code: Callable[..., Any]) -> OrderedDict:
