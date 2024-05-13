@@ -3,7 +3,9 @@
 [![codecov](https://codecov.io/gh/inno/pysimplecli/branch/main/graph/badge.svg?token=T6NP6XSKJG)](https://codecov.io/gh/inno/pysimplecli)
 [![CI](https://github.com/inno/pysimplecli/actions/workflows/main.yml/badge.svg)](https://github.com/inno/pysimplecli/actions/workflows/main.yml)
 
-Want to turn your script into a command line utility, but don't want the overhead of [argparse](https://docs.python.org/library/argparse.html)? *You've come to the right place!*
+Want to turn your script into a command line utility, but don't want the overhead of [argparse](https://docs.python.org/library/argparse.html)?
+
+*You've come to the right place!*
 
 Simply import and wrap whatever function you'd like to expose. That's it!
 
