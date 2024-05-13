@@ -345,7 +345,7 @@ def format_docstring(docstring: str) -> str:
     start = end_offset = 0
     searching_for_start = True
     minimum_indent = 99  # Arbitrarily large minimum indent as a placeholder
-    lines = docstring.split(os.linesep)
+    lines = docstring.splitlines()
     for offset, line in enumerate(lines):
         indent = re.match(r"\s*", line).span()[1]  # type: ignore[union-attr]
         if indent != len(line):
@@ -358,7 +358,7 @@ def format_docstring(docstring: str) -> str:
             end_offset += 1
 
     aligned_lines = [line[minimum_indent:] for line in lines]
-    return "\n".join(aligned_lines[start : len(lines) - end_offset])
+    return os.linesep.join(aligned_lines[start : len(lines) - end_offset])
 
 
 def wrap(func: Callable[..., Any]) -> None:

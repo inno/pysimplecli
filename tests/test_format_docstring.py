@@ -1,3 +1,4 @@
+import os
 import pytest
 from simplecli.simplecli import format_docstring
 
@@ -9,7 +10,7 @@ def test_help_text_docstring_indent_simple():
         more things
     """
     text = format_docstring(docstring)
-    assert text == "stuff\n  things\n    more things"
+    assert text == "stuff\n  things\n    more things".replace("\n", os.linesep)
 
 
 def test_help_text_docstring_indent_hanging_whitespace():
@@ -18,7 +19,7 @@ def test_help_text_docstring_indent_hanging_whitespace():
       things
     """
     text = format_docstring(docstring)
-    assert text == "stuff\n  things"
+    assert text == "stuff\n  things".replace("\n", os.linesep)
 
 
 def test_help_text_docstring_empty():
