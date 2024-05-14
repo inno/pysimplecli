@@ -1,4 +1,4 @@
-name: Python package
+name: Matrix tests
 
 on: [push]
 
