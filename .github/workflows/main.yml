@@ -1,6 +1,13 @@
 name: Matrix tests
 
-on: [push]
+on:
+  push:
+    paths-ignore:
+      - ".github/**"
+      - "README.md"
+      - "pyproject.yml"
+      - ".gitignore"
+      - ".pre-commit-config.yaml"
 
 jobs:
   build:
