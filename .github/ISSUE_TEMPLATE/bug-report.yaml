@@ -33,7 +33,7 @@ body:
     validations:
       required: true
   - type: textarea
-    id: version
+    id: python_version
     attributes:
       label: Version of Python
       description: What version of Python you running? (`python -V`)
