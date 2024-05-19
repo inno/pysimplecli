@@ -1,6 +1,10 @@
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = [
+    "poetry-core>=1.0.0",
+    "poetry-dynamic-versioning>=1.0.0,<2.0.0",
+]
+build-backend = "poetry_dynamic_versioning.backend"
+
 
 [tool.coverage.report]
 show_missing = true
@@ -36,7 +40,7 @@ shell = """
 """
 [tool.poetry]
 name = "pysimplecli"
-version = "0"
+version = "0.0.0"  # Placeholder
 description = "Easily turn functions into command line utilities"
 authors = ["Clif Bratcher <cebratcher@gmail.com>"]
 readme = "README.md"
@@ -46,7 +50,6 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.9"
-poetry-version-plugin = "*"
 
 [tool.poetry.group.test.dependencies]
 pytest ="*"
@@ -59,8 +62,9 @@ flake8 = "^7.0.0"
 poethepoet = "*"
 ruff = "^0.3.4"
 
-[tool.poetry-version-plugin]
-source = "git-tag"
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
 
 [tool.pytest.ini_options]
 testpaths = [
