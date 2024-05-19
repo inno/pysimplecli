@@ -181,22 +181,38 @@ def test_wrap_simple_positional(capfd, monkeypatch):
 
 
 def test_wrap_boolean_false(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["filename", "--is-false"])
+    monkeypatch.setattr(sys, "argv", ["filename"])
 
     @simplecli.wrap
     def code(is_false: bool = False):
         assert is_false is False
 
 
+def test_wrap_boolean_false_invert(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "--invert"])
+
+    @simplecli.wrap
+    def code(invert: bool = False):
+        assert invert is True
+
+
 def test_wrap_boolean_true(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["filename", "--is-true"])
+    monkeypatch.setattr(sys, "argv", ["filename"])
 
     @simplecli.wrap
     def code(is_true: bool = True):
         assert is_true is True
 
 
-def test_wrap_boolean_true_no_default(monkeypatch):
+def test_wrap_boolean_true_invert(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "--invert"])
+
+    @simplecli.wrap
+    def code(invert: bool = True):
+        assert invert is False
+
+
+def test_wrap_boolean_true_no_default_invert(monkeypatch):
     monkeypatch.setattr(sys, "argv", ["filename", "--is-something"])
 
     @simplecli.wrap

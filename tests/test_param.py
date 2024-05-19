@@ -74,7 +74,7 @@ def test_set_value():
     with pytest.raises(ValueError, match="[int, float]"):
         p1.set_value("this is the value")
 
-    with pytest.raises(ValueError, match="[int, float]"):
+    with pytest.raises(TypeError, match="[int, float]"):
         p1.set_value(DefaultIfBool)
     assert p1.value is Empty
     p1.set_value(3)
