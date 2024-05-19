@@ -311,8 +311,6 @@ def params_to_kwargs(
     missing_params = []
     try:
         for param in params:
-            if param.annotation is Empty:
-                exit("ERROR: All wrapped function parameters need type hints!")
             # Positional arguments take precedence
             if pos_args:
                 param.set_value(pos_args.pop(0))
@@ -406,19 +404,18 @@ def wrap(func: Callable[..., Any]) -> Callable[..., Any]:
 
 def code_to_ordered_params(code: Callable[..., Any]) -> OrderedDict:
     signature = inspect.signature(code)
-    empty = inspect._empty
-    return OrderedDict(
-        (
-            k,
-            Param(
-                name=v.name,
-                default=Empty if v.default is empty else v.default,
-                annotation=Empty if v.annotation is empty else v.annotation,
-                kind=v.kind,
-            ),
+    result = OrderedDict()
+
+    for k, v in signature.parameters.items():
+        if v.annotation is inspect._empty:
+            exit("ERROR: All wrapped function parameters need type hints!")
+        result[k] = Param(
+            name=v.name,
+            default=Empty if v.default is inspect._empty else v.default,
+            annotation=v.annotation,
+            kind=v.kind,
         )
-        for k, v in signature.parameters.items()
-    )
+    return result
 
 
 def process_comment(
