@@ -38,10 +38,12 @@ class Empty:
     pass
 
 
+class DefaultIfBool:
+    pass
+
+
 _wrapped = False
-# Overloaded placeholder for a potential boolean
-DefaultIfBool = "Crazy going slowly am I, 6, 5, 4, 3, 2, 1, switch!"
-ValueType = Union[type[Empty], bool, float, int, str]
+ValueType = Union[type[DefaultIfBool], type[Empty], bool, float, int, str]
 ArgDict = dict[str, ValueType]
 ArgList = list[str]
 
@@ -208,6 +210,7 @@ class Param(inspect.Parameter):
         return passed
 
     def set_value(self, value: ValueType) -> None:
+        result = value
         if self.validate(value) is False:
             raise ValueError(
                 f"'{self.help_name}' must be of type {self.help_type}"
@@ -225,13 +228,10 @@ class Param(inspect.Parameter):
         if value is DefaultIfBool:
             if bool not in self.datatypes:
                 raise ValueError(f"'{self.help_name}' requires a value")
-            if self.default != Empty:
-                self._value = self.annotation(self.default)
-                return
-            else:
-                self._value = self.annotation(True)
-                return
-        self._value = self.annotation(value)
+            result = self.default if self.default is not Empty else True
+        elif bool in self.datatypes and self.default is Empty:
+            result = value
+        self._value = self.annotation(result)
 
 
 def tokenize_string(string: str) -> Generator[TokenInfo, None, None]:
@@ -315,6 +315,12 @@ def params_to_kwargs(
             if pos_args:
                 param.set_value(pos_args.pop(0))
             elif param.name in kw_args:
+                if kw_args[param.name] is DefaultIfBool:
+                    # Invert the default value
+                    param.set_value(
+                        True if param.default is Empty else not param.default
+                    )
+                    continue
                 param.set_value(kw_args[param.name])
                 continue
             elif param.required:

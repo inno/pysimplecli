@@ -154,6 +154,14 @@ A parameter becomes "required" if it is an `int`, `float` or `str` and does not 
 
 With more than one decorator, it's impossible to tell which function you'd like to wrap. Because of this, we enforce a single `@wrap` per file. Importing modules using `pysimplecli` is supported, as is calling said wrapped functions.
 
+### Truth table for boolean parameters
+
+| Parameter Default | Without Argument | With Argument |
+| --- | --- | --- |
+| `True` | `True` | `False` |
+| `False` | `False` | `True` |
+| no default | `False` | `True` |
+
 ## How It Works
 
 The `wrap` decorator takes the annotated parameters of a given function and maps them to corresponding command-line arguments. It relies heavily on Python's `inspect` and `tokenize` modules to gather parameters, parse comments for parameter descriptions, determine default functionality, etc...  In fact, a core part of this module is a are heavily extended `inspect.Parameter` objects.
