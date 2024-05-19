@@ -233,3 +233,36 @@ def test_directly_called_wrap(monkeypatch):
 
     assert nt.code(1, foo="test") == "2 test!"
     assert nt.code(test_id=2, foo="blarg") == "3 blarg!"
+
+
+def test_wrap_no_typehint_(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "123"])
+
+    def code1(foo):
+        pass
+
+    with pytest.raises(SystemExit, match="parameters need type hints!"):
+        code1.__globals__["__name__"] = "__main__"
+        simplecli.wrap(code1)
+
+
+def test_wrap_no_typehint_no_arg(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename"])
+
+    def code1(foo):
+        pass
+
+    with pytest.raises(SystemExit, match="ERROR: All wrapped function "):
+        code1.__globals__["__name__"] = "__main__"
+        simplecli.wrap(code1)
+
+
+def test_wrap_no_typehint_kwarg(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "--foo"])
+
+    def code1(foo):
+        pass
+
+    with pytest.raises(SystemExit, match="function parameters need type"):
+        code1.__globals__["__name__"] = "__main__"
+        simplecli.wrap(code1)
