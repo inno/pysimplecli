@@ -311,6 +311,8 @@ def params_to_kwargs(
     missing_params = []
     try:
         for param in params:
+            if param.annotation is Empty:
+                exit("ERROR: All wrapped function parameters need type hints!")
             # Positional arguments take precedence
             if pos_args:
                 param.set_value(pos_args.pop(0))
