@@ -393,7 +393,7 @@ def wrap(func: Callable[..., Any]) -> Callable[..., Any]:
             if re.search(rf"[\(\s]{e.args[0]}:", line)
         ][0]
         exit(
-            f"File {'"' + filename + '"'}, line {offset}\n"
+            f"File \x22{filename}\x22, line {offset}\n"
             f"{source[0][offset - 1].rstrip()}\n"
             f"UnsupportedType: {e.args[1]}"
         )
