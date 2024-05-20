@@ -42,6 +42,10 @@ class DefaultIfBool:
     pass
 
 
+class UnsupportedType(TypeError):
+    pass
+
+
 _wrapped = False
 ValueType = Union[type[DefaultIfBool], type[Empty], bool, float, int, str]
 ArgDict = dict[str, ValueType]
@@ -65,14 +69,6 @@ class Param(inspect.Parameter):
                 raise TypeError("needs 'name' argument")
             kwargs["name"] = argv[0]
             argv = ()
-        if kwargs["annotation"] not in get_args(ValueType):
-            if get_origin(kwargs["annotation"]) not in (Union, UnionType):
-                if kwargs["annotation"] is not Empty:
-                    raise ValueError(
-                        "annotation type "
-                        f"'{type(kwargs['annotation']).__name__}' "
-                        "is not currently supported!"
-                    )
         param_description = str(kwargs.pop("description", ""))
         param_line = str(kwargs.pop("line", ""))
         param_value = kwargs.pop("value", Empty)
@@ -90,6 +86,16 @@ class Param(inspect.Parameter):
         # Overrides required as these values are generally unused
         if not self.description:
             self.parse_or_prepend(param_line)
+        annotation = kwargs["annotation"]
+        if annotation not in get_args(ValueType):
+            if get_origin(annotation) not in (Union, UnionType):
+                if annotation is not Empty:
+                    pretty_annotation = (
+                        annotation
+                        if type(annotation) is type
+                        else annotation.__class__.__name__
+                    )
+                    raise UnsupportedType(kwargs["name"], pretty_annotation)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Param):
@@ -376,7 +382,21 @@ def wrap(func: Callable[..., Any]) -> Callable[..., Any]:
     _wrapped = True
     filename = sys.argv[0]
     argv = sys.argv[1:]
-    params = extract_code_params(code=func)
+    try:
+        params = extract_code_params(code=func)
+    except UnsupportedType as e:
+        source = inspect.findsource(func)
+        offset = source[1] + 1
+        offset += [
+            index
+            for index, line in enumerate(source[0][source[1] :])
+            if re.search(rf"[\(\s]{e.args[0]}:", line)
+        ][0]
+        exit(
+            f"File {'"' + filename + '"'}, line {offset}\n"
+            f"{source[0][offset - 1].rstrip()}\n"
+            f"UnsupportedType: {e.args[1]}"
+        )
     pos_args, kw_args = clean_args(argv)
     params.append(
         Param("help", description="Show this message", internal_only=True)

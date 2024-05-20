@@ -266,3 +266,14 @@ def test_wrap_no_typehint_kwarg(monkeypatch):
     with pytest.raises(SystemExit, match="function parameters need type"):
         code1.__globals__["__name__"] = "__main__"
         simplecli.wrap(code1)
+
+
+def test_wrap_unsupported_type(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "--foo"])
+
+    def code1(foo: [str, int]):
+        pass
+
+    with pytest.raises(SystemExit, match="UnsupportedType: list"):
+        code1.__globals__["__name__"] = "__main__"
+        simplecli.wrap(code1)

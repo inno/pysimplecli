@@ -1,7 +1,7 @@
 from __future__ import annotations
 import pytest
 import re
-from simplecli.simplecli import DefaultIfBool, Empty, Param
+from simplecli.simplecli import DefaultIfBool, Empty, Param, UnsupportedType
 from tests.utils import skip_if_uniontype_unsupported
 from typing import Optional, Union
 
@@ -92,7 +92,7 @@ def test_set_value():
     p2 = Param(name="testparam2", annotation=bool, default=True)
     assert p2.value is True
 
-    with pytest.raises(ValueError, match="list"):
+    with pytest.raises(UnsupportedType, match="list"):
         Param(name="testparam3", annotation=[str, bool])
 
     p3 = Param(name="testparam3", annotation=str)
