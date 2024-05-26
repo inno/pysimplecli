@@ -307,3 +307,55 @@ def test_wrap_unsupported_type(monkeypatch):
         code1.__globals__["__name__"] = "__main__"
         simplecli.wrap(code1)
     code1.__globals__["__name__"] = code1_name
+
+
+def test_wrap_list_of_strings(capfd, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["fn", "this", "is", "a", "test"])
+
+    def code1(foo: list[str]):
+        print(" | ".join(foo))
+
+    code1_name = code1.__globals__["__name__"]
+    code1.__globals__["__name__"] = "__main__"
+    simplecli.wrap(code1)
+    assert capfd.readouterr().out == "this | is | a | test\n"
+    code1.__globals__["__name__"] = code1_name
+
+
+def test_wrap_list_of_ints(capfd, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "8", "6", "7", "53", "09"])
+
+    def code1(foo: list[int]):
+        print(sum(foo))
+
+    code1_name = code1.__globals__["__name__"]
+    code1.__globals__["__name__"] = "__main__"
+    simplecli.wrap(code1)
+    assert capfd.readouterr().out == "83\n"
+    code1.__globals__["__name__"] = code1_name
+
+
+def test_wrap_set_of_ints_different(capfd, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "8", "6", "7", "53", "09"])
+
+    def code1(foo: set[int]):
+        print(sum(foo))
+
+    code1_name = code1.__globals__["__name__"]
+    code1.__globals__["__name__"] = "__main__"
+    simplecli.wrap(code1)
+    assert capfd.readouterr().out == "83\n"
+    code1.__globals__["__name__"] = code1_name
+
+
+def test_wrap_set_of_ints_same(capfd, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "8", "8", "8", "1", "08"])
+
+    def code1(foo: set[int]):
+        print(sum(foo))
+
+    code1_name = code1.__globals__["__name__"]
+    code1.__globals__["__name__"] = "__main__"
+    simplecli.wrap(code1)
+    assert capfd.readouterr().out == "9\n"
+    code1.__globals__["__name__"] = code1_name

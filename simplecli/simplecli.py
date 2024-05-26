@@ -51,7 +51,7 @@ _wrapped = False
 ValueType = Union[type[DefaultIfBool], type[Empty], bool, float, int, str]
 ArgDict = dict[str, ValueType]
 ArgList = list[str]
-valid_origins = (Union, UnionType)
+valid_origins = (Union, UnionType, list, set)
 
 
 class Param(inspect.Parameter):
@@ -215,6 +215,9 @@ class Param(inspect.Parameter):
         return [self.annotation]
 
     def validate(self, value: ValueType) -> bool:
+        # Recurse for list handling
+        if isinstance(value, list):
+            return all(self.validate(v) for v in value)
         passed = False
         for expected_type in self.datatypes:
             if expected_type is type(None):
@@ -234,7 +237,8 @@ class Param(inspect.Parameter):
             )
         # Handle datatypes
         args = get_args(self.annotation)
-        if args:
+        origin = get_origin(self.annotation)
+        if origin in (Union, UnionType):
             for type_arg in args:
                 with (
                     contextlib.suppress(TypeError),
@@ -249,6 +253,19 @@ class Param(inspect.Parameter):
         elif bool in self.datatypes and self.default is Empty:
             result = value
         self._value = self.annotation(result)
+
+    def set_value_as_seq(self, values: ArgList) -> None:
+        args = get_args(self.annotation)
+        origin = get_origin(self.annotation)
+        self._value = []
+        temp_value = []
+        for value in values:
+            if self.validate(value) is False:
+                raise ValueError(
+                    f"'{self.help_name}' must be of type {self.help_type}"
+                )
+            temp_value.append(args[0](value))
+        self._value = origin(temp_value)
 
 
 def tokenize_string(string: str) -> Generator[TokenInfo, None, None]:
@@ -329,8 +346,12 @@ def params_to_kwargs(
     try:
         for param in params:
             kw_value = kw_args.get(param.name)
+            if get_origin(param.annotation) in (list, set):
+                # Consume ALL pos_args if list or set
+                param.set_value_as_seq(pos_args)
+                pos_args.clear()
             # Positional arguments take precedence
-            if pos_args:
+            elif pos_args:
                 param.set_value(pos_args.pop(0))
             elif kw_value:
                 param.set_value(kw_value)
