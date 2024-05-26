@@ -148,7 +148,7 @@ A parameter becomes "required" if it is an `int`, `float` or `str` and does not 
 
 ### Complex variables are not supported
 
-*Only* simple variable types (`bool`, `float`, `int`, `str`) are currently supported. Mapping and sequence types might be supported in the future but anything else is beyond the scope of this utility.
+*Only* simple variable types (`bool`, `float`, `int`, `str`) are currently supported as well as `list` and `set` of those types. Mapping types are beyond the scope of this utility.
 
 ### Only one `@wrap` allowed per file
 
