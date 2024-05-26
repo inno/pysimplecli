@@ -22,6 +22,7 @@ from typing import (
     get_args,
     get_origin,
 )
+from types import GenericAlias
 
 try:
     from types import UnionType
@@ -86,16 +87,25 @@ class Param(inspect.Parameter):
         # Overrides required as these values are generally unused
         if not self.description:
             self.parse_or_prepend(param_line)
-        annotation = kwargs["annotation"]
-        if annotation not in get_args(ValueType):
-            if get_origin(annotation) not in (Union, UnionType):
-                if annotation is not Empty:
-                    pretty_annotation = (
-                        annotation
-                        if type(annotation) is type
-                        else annotation.__class__.__name__
-                    )
-                    raise UnsupportedType(kwargs["name"], pretty_annotation)
+        self.validate_annotation(kwargs["name"], kwargs["annotation"])
+
+    def validate_annotation(self, name: str, annotation: object) -> None:
+        if annotation in get_args(ValueType):
+            return
+        if get_origin(annotation) in (Union, UnionType):
+            return
+        if annotation is Empty:
+            return
+
+        pretty_annotation = (
+            annotation
+            if (
+                type(annotation) is type
+                or isinstance(annotation, GenericAlias)
+            )
+            else annotation.__class__.__name__
+        )
+        raise UnsupportedType(name, pretty_annotation)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Param):
