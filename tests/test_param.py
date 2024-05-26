@@ -190,3 +190,25 @@ def test_param_boolean_implied_false():
     assert p1.required is False
     assert p1.optional is False
     assert p1.value is False
+
+
+def test_param_validate_list():
+    p1 = Param(name="testparam1", annotation=list[str])
+    assert p1.validate(["foo", "bar"]) is True
+    assert p1.required is True
+    assert p1.optional is False
+
+
+def test_param_set_value_as_seq_valid():
+    p1 = Param(name="testparam1", annotation=list[str])
+    p1.set_value_as_seq([123, "bar"])
+    assert p1.required is True
+    assert p1.optional is False
+
+
+def test_param_set_value_as_seq_invalid():
+    p1 = Param(name="testparam1", annotation=list[int])
+    with pytest.raises(ValueError, match="int"):
+        p1.set_value_as_seq([123, "bar"])
+    assert p1.required is True
+    assert p1.optional is False
