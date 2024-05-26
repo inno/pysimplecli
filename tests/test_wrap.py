@@ -27,11 +27,15 @@ def test_wrap_dupe(monkeypatch):
     def code2(a: int):
         pass
 
+    code1_name = code1.__globals__["__name__"]
+    code2_name = code2.__globals__["__name__"]
     with pytest.raises(SystemExit, match="only ONE"):
         code1.__globals__["__name__"] = "__main__"
         code2.__globals__["__name__"] = "__main__"
         simplecli.wrap(code1)
         simplecli.wrap(code2)
+    code1.__globals__["__name__"] = code1_name
+    code2.__globals__["__name__"] = code2_name
 
 
 def test_wrap_help_simple(monkeypatch):
@@ -40,9 +44,11 @@ def test_wrap_help_simple(monkeypatch):
     def code1(this_var: int):  # stuff and things
         pass
 
+    code1_name = code1.__globals__["__name__"]
     with pytest.raises(SystemExit) as e:
         code1.__globals__["__name__"] = "__main__"
         simplecli.wrap(code1)
+    code1.__globals__["__name__"] = code1_name
 
     help_msg = e.value.args[0]
     assert "--this-var" in help_msg
@@ -59,9 +65,11 @@ def test_wrap_help_complex(monkeypatch):
     ):
         pass
 
+    code_name = code.__globals__["__name__"]
     with pytest.raises(SystemExit) as e:
         code.__globals__["__name__"] = "__main__"
         simplecli.wrap(code)
+    code.__globals__["__name__"] = code_name
 
     help_msg = e.value.args[0]
     assert "--that-var" in help_msg
@@ -76,9 +84,11 @@ def test_wrap_simple_type_error(monkeypatch):
     def code(a: int):
         pass
 
+    code_name = code.__globals__["__name__"]
     with pytest.raises(SystemExit, match="Too many positional"):
         code.__globals__["__name__"] = "__main__"
         simplecli.wrap(code)
+    code.__globals__["__name__"] = code_name
 
 
 def test_wrap_simple_value_error(monkeypatch):
@@ -87,9 +97,11 @@ def test_wrap_simple_value_error(monkeypatch):
     def code(a: int):
         pass
 
+    code_name = code.__globals__["__name__"]
     with pytest.raises(SystemExit, match="must be of type int"):
         code.__globals__["__name__"] = "__main__"
         simplecli.wrap(code)
+    code.__globals__["__name__"] = code_name
 
 
 def test_wrap_version_absent(monkeypatch):
@@ -98,9 +110,11 @@ def test_wrap_version_absent(monkeypatch):
     def code2(this_var: int):  # stuff and things
         pass
 
+    code2_name = code2.__globals__["__name__"]
     with pytest.raises(SystemExit) as e:
         code2.__globals__["__name__"] = "__main__"
         simplecli.wrap(code2)
+    code2.__globals__["__name__"] = code2_name
 
     help_msg = e.value.args[0]
     assert "Description:" not in help_msg
@@ -115,10 +129,12 @@ def test_wrap_version_exists(monkeypatch):
     def code1(this_var: int):  # stuff and things
         pass
 
+    code1_name = code1.__globals__["__name__"]
     with pytest.raises(SystemExit) as e:
         code1.__globals__["__name__"] = "__main__"
         code1.__globals__["__version__"] = "1.2.3"
         simplecli.wrap(code1)
+    code1.__globals__["__name__"] = code1_name
 
     help_msg = e.value.args[0]
     assert "super_script version 1.2.3" in help_msg
@@ -135,9 +151,11 @@ def test_docstring(monkeypatch):
         this is a description
         """
 
+    code2_name = code2.__globals__["__name__"]
     with pytest.raises(SystemExit) as e:
         code2.__globals__["__name__"] = "__main__"
         simplecli.wrap(code2)
+    code2.__globals__["__name__"] = code2_name
 
     help_msg = e.value.args[0]
     assert "Description:" in help_msg
@@ -156,9 +174,11 @@ def test_wrap_uniontype(monkeypatch):
     ):
         pass
 
+    code_name = code.__globals__["__name__"]
     with pytest.raises(SystemExit) as e:
         code.__globals__["__name__"] = "__main__"
         simplecli.wrap(code)
+    code.__globals__["__name__"] = code_name
 
     help_msg = e.value.args[0]
     assert "--that-var" in help_msg
@@ -174,10 +194,12 @@ def test_wrap_simple_positional(capfd, monkeypatch):
     def code(a: int, b: int, c: typing.Union[int, float]):
         print(a + b + c)
 
+    code_name = code.__globals__["__name__"]
     code.__globals__["__name__"] = "__main__"
     simplecli.wrap(code)
     (out, _) = capfd.readouterr()
     assert out.strip() == "6.5"
+    code.__globals__["__name__"] = code_name
 
 
 def test_wrap_boolean_false(monkeypatch):
@@ -241,9 +263,11 @@ def test_wrap_no_typehint_(monkeypatch):
     def code1(foo):
         pass
 
+    code1_name = code1.__globals__["__name__"]
     with pytest.raises(SystemExit, match="parameters need type hints!"):
         code1.__globals__["__name__"] = "__main__"
         simplecli.wrap(code1)
+    code1.__globals__["__name__"] = code1_name
 
 
 def test_wrap_no_typehint_no_arg(monkeypatch):
@@ -252,9 +276,11 @@ def test_wrap_no_typehint_no_arg(monkeypatch):
     def code1(foo):
         pass
 
+    code1_name = code1.__globals__["__name__"]
     with pytest.raises(SystemExit, match="ERROR: All wrapped function "):
         code1.__globals__["__name__"] = "__main__"
         simplecli.wrap(code1)
+    code1.__globals__["__name__"] = code1_name
 
 
 def test_wrap_no_typehint_kwarg(monkeypatch):
@@ -263,9 +289,11 @@ def test_wrap_no_typehint_kwarg(monkeypatch):
     def code1(foo):
         pass
 
+    code1_name = code1.__globals__["__name__"]
     with pytest.raises(SystemExit, match="function parameters need type"):
         code1.__globals__["__name__"] = "__main__"
         simplecli.wrap(code1)
+    code1.__globals__["__name__"] = code1_name
 
 
 def test_wrap_unsupported_type(monkeypatch):
@@ -274,6 +302,60 @@ def test_wrap_unsupported_type(monkeypatch):
     def code1(foo: [str, int]):
         pass
 
+    code1_name = code1.__globals__["__name__"]
     with pytest.raises(SystemExit, match="UnsupportedType: list"):
         code1.__globals__["__name__"] = "__main__"
         simplecli.wrap(code1)
+    code1.__globals__["__name__"] = code1_name
+
+
+def test_wrap_list_of_strings(capfd, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["fn", "this", "is", "a", "test"])
+
+    def code1(foo: list[str]):
+        print(" | ".join(foo))
+
+    code1_name = code1.__globals__["__name__"]
+    code1.__globals__["__name__"] = "__main__"
+    simplecli.wrap(code1)
+    assert capfd.readouterr().out == "this | is | a | test\n"
+    code1.__globals__["__name__"] = code1_name
+
+
+def test_wrap_list_of_ints(capfd, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "8", "6", "7", "53", "09"])
+
+    def code1(foo: list[int]):
+        print(sum(foo))
+
+    code1_name = code1.__globals__["__name__"]
+    code1.__globals__["__name__"] = "__main__"
+    simplecli.wrap(code1)
+    assert capfd.readouterr().out == "83\n"
+    code1.__globals__["__name__"] = code1_name
+
+
+def test_wrap_set_of_ints_different(capfd, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "8", "6", "7", "53", "09"])
+
+    def code1(foo: set[int]):
+        print(sum(foo))
+
+    code1_name = code1.__globals__["__name__"]
+    code1.__globals__["__name__"] = "__main__"
+    simplecli.wrap(code1)
+    assert capfd.readouterr().out == "83\n"
+    code1.__globals__["__name__"] = code1_name
+
+
+def test_wrap_set_of_ints_same(capfd, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["filename", "8", "8", "8", "1", "08"])
+
+    def code1(foo: set[int]):
+        print(sum(foo))
+
+    code1_name = code1.__globals__["__name__"]
+    code1.__globals__["__name__"] = "__main__"
+    simplecli.wrap(code1)
+    assert capfd.readouterr().out == "9\n"
+    code1.__globals__["__name__"] = code1_name
