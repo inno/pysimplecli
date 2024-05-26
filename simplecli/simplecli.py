@@ -328,21 +328,15 @@ def params_to_kwargs(
     missing_params = []
     try:
         for param in params:
+            kw_value = kw_args.get(param.name)
             # Positional arguments take precedence
             if pos_args:
                 param.set_value(pos_args.pop(0))
-            elif param.name in kw_args:
-                if kw_args[param.name] is DefaultIfBool:
-                    # Invert the default value
-                    param.set_value(
-                        True if param.default is Empty else not param.default
-                    )
-                    continue
-                param.set_value(kw_args[param.name])
+            elif kw_value:
+                param.set_value(kw_value)
                 continue
             elif param.required:
                 missing_params.append(param)
-                continue
     except ValueError as e:
         exit(e.args[0])
 
