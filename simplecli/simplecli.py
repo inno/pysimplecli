@@ -51,6 +51,7 @@ _wrapped = False
 ValueType = Union[type[DefaultIfBool], type[Empty], bool, float, int, str]
 ArgDict = dict[str, ValueType]
 ArgList = list[str]
+valid_origins = (Union, UnionType)
 
 
 class Param(inspect.Parameter):
@@ -92,7 +93,7 @@ class Param(inspect.Parameter):
     def validate_annotation(self, name: str, annotation: object) -> None:
         if annotation in get_args(ValueType):
             return
-        if get_origin(annotation) in (Union, UnionType):
+        if get_origin(annotation) in valid_origins:
             return
         if annotation is Empty:
             return
@@ -164,7 +165,7 @@ class Param(inspect.Parameter):
 
     @property
     def help_type(self) -> str:
-        if get_origin(self.annotation) in (Union, UnionType):
+        if get_origin(self.annotation) in valid_origins:
             typelist = ", ".join([a.__name__ for a in self.datatypes])
             return f"[{typelist}]"
         return self.annotation.__name__
