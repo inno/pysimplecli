@@ -2,6 +2,7 @@
 
 [![codecov](https://codecov.io/gh/inno/pysimplecli/branch/main/graph/badge.svg?token=T6NP6XSKJG)](https://codecov.io/gh/inno/pysimplecli)
 [![CI](https://github.com/inno/pysimplecli/actions/workflows/main.yml/badge.svg)](https://github.com/inno/pysimplecli/actions/workflows/main.yml)
+[![PyPI Version](https://img.shields.io/pypi/v/pysimplecli.svg)](https://pypi.python.org/pypi/pysimplecli)
 
 Want to turn your script into a command line utility, but don't want the overhead of [argparse](https://docs.python.org/library/argparse.html)?
 
