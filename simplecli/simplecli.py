@@ -249,9 +249,7 @@ class Param(inspect.Parameter):
         if value is DefaultIfBool:
             if bool not in self.datatypes:
                 raise ValueError(f"'{self.help_name}' requires a value")
-            result = self.default if self.default is not Empty else True
-        elif bool in self.datatypes and self.default is Empty:
-            result = value
+            result = True if self.default is Empty else not bool(self.default)
         self._value = self.annotation(result)
 
     def set_value_as_seq(self, values: ArgList) -> None:
