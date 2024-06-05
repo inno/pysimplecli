@@ -329,6 +329,14 @@ def test_boolean_default_false_set_value():
         pass
 
     params = simplecli.extract_code_params(code)
+    assert params == [
+        simplecli.Param(
+            name="foo",
+            annotation=bool,
+            default=False,
+            value=False,
+        ),
+    ]
     params[0].set_value(True)
     assert params == [
         simplecli.Param(
@@ -345,6 +353,14 @@ def test_boolean_default_defaultifbool():
         pass
 
     params = simplecli.extract_code_params(code)
+    assert params == [
+        simplecli.Param(
+            name="foo",
+            annotation=bool,
+            default=simplecli.Empty,
+            value=False,
+        ),
+    ]
     params[0].set_value(simplecli.DefaultIfBool)
     assert params == [
         simplecli.Param(
@@ -361,13 +377,21 @@ def test_boolean_default_false_defaultifbool():
         pass
 
     params = simplecli.extract_code_params(code)
-    params[0].set_value(simplecli.DefaultIfBool)
     assert params == [
         simplecli.Param(
             name="foo",
             annotation=bool,
             default=False,
             value=False,
+        ),
+    ]
+    params[0].set_value(simplecli.DefaultIfBool)
+    assert params == [
+        simplecli.Param(
+            name="foo",
+            annotation=bool,
+            default=False,
+            value=True,
         ),
      ]
 
