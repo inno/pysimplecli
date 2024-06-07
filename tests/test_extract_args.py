@@ -458,3 +458,18 @@ def test_two_args_bottom_comment():
             description="this is B",
         ),
      ]
+
+
+def test_two_args_unrelated_comment():
+    def code(
+        a: int,
+        b: int,
+    ):
+        # This is not an attribute comment
+        pass
+
+    params = simplecli.extract_code_params(code)
+    assert params == [
+        simplecli.Param(name="a", annotation=int),
+        simplecli.Param(name="b", annotation=int),
+     ]
