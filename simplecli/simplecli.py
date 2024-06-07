@@ -1,10 +1,12 @@
 from __future__ import annotations
+import ast
 import contextlib
 import inspect
 import io
 import os
 import re
 import sys
+import textwrap
 from collections import OrderedDict
 from collections.abc import Generator
 from tokenize import (
@@ -482,15 +484,26 @@ def process_comment(
     return comment
 
 
+def function_def_end(source: str) -> int:
+    fd = ast.parse(textwrap.dedent(source)).body[0]
+    if not hasattr(fd, "args"):
+        return -1
+    return fd.args.args[-1].end_lineno if fd.args.args else -1
+
+
 def extract_code_params(code: Callable[..., Any]) -> list[Param]:
     ordered_params = code_to_ordered_params(code)
     hints = {k: v.annotation for k, v in ordered_params.items()}.copy()
     comment = ""
     param = None
     params: list[Param] = []
+    source = inspect.getsource(code)
+    fd_end = function_def_end(source)
 
-    for token in tokenize_string(inspect.getsource(code)):
+    for token in tokenize_string(source):
         if token.exact_type is COMMENT:
+            if fd_end > -1 and token.end[0] > fd_end:
+                break
             comment = process_comment(param, params, token)
             continue
         # tokenize.NL -
